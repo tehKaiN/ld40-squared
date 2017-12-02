@@ -142,49 +142,33 @@ void squareMove(tSquare *pSquare) {
 
 void squareProcessPlayer(void) {
 	tSquare *pSquare = g_pSquareFirst;
-	UBYTE isMoving = 1;
+	UBYTE ubDestAngle = 0xFF;
 
+	// NOTE: This is nasty but I guess it's quickest, think of something better?
 	if(keyCheck(KEY_W)) {
-		// Desination angle: 64
-		if(pSquare->ubAngle != 64) {
-			if(pSquare->ubAngle > 192 || pSquare->ubAngle < 64)
-				++pSquare->ubAngle;
-			else
-				--pSquare->ubAngle;
-		}
+		if(keyCheck(KEY_A))
+			ubDestAngle = 96;
+		else if(keyCheck(KEY_D))
+			ubDestAngle = 32;
+		else
+			ubDestAngle = 64;
 	}
 	else if(keyCheck(KEY_S)) {
-		// Destination angle: 192
-		if(pSquare->ubAngle != 192) {
-			if(pSquare->ubAngle < 64 || pSquare->ubAngle > 192)
-				--pSquare->ubAngle;
-			else
-				++pSquare->ubAngle;
-		}
+		if(keyCheck(KEY_A))
+			ubDestAngle = 160;
+		else if(keyCheck(KEY_D))
+			ubDestAngle = 224;
+		else
+			ubDestAngle = 192;
 	}
-	else if(keyCheck(KEY_A)) {
-		// Destination angle: 128
-		if(pSquare->ubAngle != 128) {
-			if(pSquare->ubAngle < 128)
-				++pSquare->ubAngle;
-			else
-				--pSquare->ubAngle;
-		}
-	}
-	else if(keyCheck(KEY_D)) {
-		// Destination angle: 0
-		if(pSquare->ubAngle) {
-			if(pSquare->ubAngle != 0) {
-				if(pSquare->ubAngle > 128)
-					++pSquare->ubAngle;
-				else
-					--pSquare->ubAngle;
-			}
-		}
-	}
-	else
-		isMoving = 0;
-	if(isMoving) {
+	else if(keyCheck(KEY_A))
+		ubDestAngle = 128;
+	else if(keyCheck(KEY_D))
+		ubDestAngle = 0;
+
+	if(ubDestAngle != 0xFF) {
+		if(pSquare->ubAngle != ubDestAngle)
+			pSquare->ubAngle += getDeltaAngleDirection(pSquare->ubAngle, ubDestAngle, 1);
 		squareMove(pSquare);
 	}
 }
