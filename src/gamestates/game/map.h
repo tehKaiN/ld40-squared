@@ -11,7 +11,7 @@
 #define MAP_WIDTH (SCREEN_PAL_WIDTH>>3)
 #define MAP_HEIGHT (GAME_MAIN_VPORT_HEIGHT>>3)
 
-void mapCreate(void);
+void mapCreate(const char *szMapName);
 
 void mapDraw(void);
 

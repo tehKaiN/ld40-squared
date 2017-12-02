@@ -35,4 +35,6 @@ void squaresOrderForDraw(void);
 void squareProcessPlayer(void);
 void squareProcessAi(void);
 
+extern tSquare *g_pSquareFirst, *g_pSquareDisplayFirst;
+
 #endif // _LD40_GAMESTATES_GAME_SQUARE_H

@@ -12,6 +12,7 @@ static tVPort *s_pMainVPort, *s_pHudVPort;
 tSimpleBufferManager *g_pMainBfrMgr;
 static tSimpleBufferManager *s_pHudBfrMgr;
 UBYTE g_ubGameOver;
+UBYTE g_ubStartX, g_ubStartY;
 
 #define GAME_HUD_VPORT_HEIGHT (SCREEN_PAL_HEIGHT - GAME_MAIN_VPORT_HEIGHT)
 
@@ -47,25 +48,26 @@ void gameGsCreate(void) {
 	TAG_DONE);
 	copBlockDisableSprites(s_pView->pCopList, 0xFF);
 
-	// Generate sine table
-	// Precision is too small to multiply pi by 255, later to be divided by 128
-	// so here's multiplying pi/2 by 255 and divided by 64
-	fix16_t fHalfPi = fix16_div(fix16_pi, fix16_from_int(2));
-	for(UWORD i = 0; i < 256; ++i)
-		g_pSin[i] = fix16_sin(fix16_div(fHalfPi * i, fix16_from_int(64)));
+	// Read sine table
+	// Generated using libfixmath with floats enabled, dumped to file
+	FILE *pSinFile = fopen("data/sin.dat", "rb");
+	for(UWORD i = 0; i < 256; ++i) {
+		fread(&g_pSin[i], sizeof(fix16_t), 1, pSinFile);
+	}
+	fclose(pSinFile);
 
 	randInit(2184);
 	squaresManagerCreate();
-	squareAdd(100, 100);
 
 	// Hud
 	blitRect(
 		s_pHudBfrMgr->pBuffer, 0, s_pHudBfrMgr->pBuffer->Rows-1,
 		SCREEN_PAL_WIDTH, 1, 2
 	);
-	mapCreate();
+	mapCreate("map0.txt");
 	mapDraw();
 	g_ubGameOver = 0;
+	squareAdd(g_ubStartX << 3, (g_ubStartY << 3) - 8);
 
 	viewLoad(s_pView);
 	logBlockEnd("gameGsCreate()");
@@ -77,7 +79,10 @@ void gameGsLoop(void) {
 		return;
 	}
 	if(keyUse(KEY_N)) {
-		squareAdd(160, 160);
+		squareAdd(
+			g_pSquareFirst->sCoord.sUwCoord.uwX - 16 + uwRandMinMax(0, 32),
+			g_pSquareFirst->sCoord.sUwCoord.uwY - 16 + uwRandMinMax(0, 32)
+		);
 		logWrite("new\n");
 	}
 
