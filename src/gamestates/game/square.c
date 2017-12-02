@@ -3,6 +3,7 @@
 #include <ace/managers/key.h>
 #include <ace/utils/chunky.h>
 #include "gamestates/game/game.h"
+#include "gamestates/game/map.h"
 
 UBYTE s_ubSquareCount;
 tSquare *g_pSquareFirst, *g_pSquareDisplayFirst;
@@ -133,11 +134,24 @@ void squareRemove(tSquare *pSquare) {
 	--s_ubSquareCount;
 }
 
-void squareMove(tSquare *pSquare) {
+UBYTE squareMove(tSquare *pSquare) {
 	pSquare->fX = fix16_add(pSquare->fX, cCos(pSquare->ubAngle));
 	pSquare->fY = fix16_sub(pSquare->fY, cSin(pSquare->ubAngle));
 	pSquare->sCoord.sUwCoord.uwX = fix16_to_int(pSquare->fX);
 	pSquare->sCoord.sUwCoord.uwY = fix16_to_int(pSquare->fY);
+
+	const tUwCoordYX *pPos = &pSquare->sCoord;
+	if(g_pMap[pPos->sUwCoord.uwX >> 3][pPos->sUwCoord.uwY >> 3] == MAP_TILE_BEB)
+		squareRemove(pSquare);
+	else if(g_pMap[pPos->sUwCoord.uwX >> 3][(pPos->sUwCoord.uwY+7) >> 3] == MAP_TILE_BEB)
+		squareRemove(pSquare);
+	else if(g_pMap[(pPos->sUwCoord.uwX+7) >> 3][pPos->sUwCoord.uwY >> 3] == MAP_TILE_BEB)
+		squareRemove(pSquare);
+	else if(g_pMap[(pPos->sUwCoord.uwX+7) >> 3][(pPos->sUwCoord.uwY+7) >> 3] == MAP_TILE_BEB)
+		squareRemove(pSquare);
+	else
+		return 1;
+	return 0;
 }
 
 void squareProcessPlayer(void) {
@@ -169,7 +183,10 @@ void squareProcessPlayer(void) {
 	if(ubDestAngle != 0xFF) {
 		if(pSquare->ubAngle != ubDestAngle)
 			pSquare->ubAngle += getDeltaAngleDirection(pSquare->ubAngle, ubDestAngle, 1);
-		squareMove(pSquare);
+		if(!squareMove(pSquare)) {
+			g_ubGameOver = 1;
+			logWrite("BEB\n");
+		}
 	}
 }
 
@@ -245,12 +262,14 @@ void squaresOrderForDraw(void) {
 
 void squaresUndraw(void) {
 	// Direction arrow
-	blitRect(
-		g_pMainBfrMgr->pBuffer,
-		g_pSquareFirst->sPrevCoord.sUwCoord.uwX-4,
-		g_pSquareFirst->sPrevCoord.sUwCoord.uwY-4,
-		16, 16, 0
-	);
+	if(!g_ubGameOver) {
+		blitRect(
+			g_pMainBfrMgr->pBuffer,
+			g_pSquareFirst->sPrevCoord.sUwCoord.uwX-4,
+			g_pSquareFirst->sPrevCoord.sUwCoord.uwY-4,
+			16, 16, 0
+		);
+	}
 
 	tSquare *pSquare = g_pSquareFirst;
 	while(pSquare) {
@@ -268,11 +287,13 @@ void squaresDraw(void) {
 	// Draw direction arrow
 	if(!g_pSquareFirst)
 		return;
-	blitCopy(
-		s_pDirBitmap, 0, g_pSquareFirst->ubAngle << 4, g_pMainBfrMgr->pBuffer,
-		g_pSquareFirst->sCoord.sUwCoord.uwX-4, g_pSquareFirst->sCoord.sUwCoord.uwY-4,
-		16, 16, MINTERM_COOKIE, 0xFF
-	);
+	if(!g_ubGameOver) {
+		blitCopy(
+			s_pDirBitmap, 0, g_pSquareFirst->ubAngle << 4, g_pMainBfrMgr->pBuffer,
+			g_pSquareFirst->sCoord.sUwCoord.uwX-4, g_pSquareFirst->sCoord.sUwCoord.uwY-4,
+			16, 16, MINTERM_COOKIE, 0xFF
+		);
+	}
 
 
 	{ // DEBUG direction arrows

@@ -5,20 +5,21 @@
 #include <ace/managers/rand.h>
 #include <ace/generic/screen.h>
 #include "gamestates/game/square.h"
+#include "gamestates/game/map.h"
 
 static tView *s_pView;
 static tVPort *s_pMainVPort, *s_pHudVPort;
 tSimpleBufferManager *g_pMainBfrMgr;
 static tSimpleBufferManager *s_pHudBfrMgr;
+UBYTE g_ubGameOver;
 
-#define GAME_MAIN_VPORT_HEIGHT 224
 #define GAME_HUD_VPORT_HEIGHT (SCREEN_PAL_HEIGHT - GAME_MAIN_VPORT_HEIGHT)
 
 fix16_t g_pSin[256];
 
 void gameGsCreate(void) {
 	logBlockBegin("gameGsCreate()");
-	const UWORD pPalette[8] = {0x000, 0xFFF, 0x333};
+	const UWORD pPalette[8] = {0x000, 0xFFF, 0x333, 0xF00, 0x0A0};
 	s_pView = viewCreate(0,
 		TAG_VIEW_GLOBAL_CLUT, 1,
 	TAG_DONE);
@@ -62,6 +63,9 @@ void gameGsCreate(void) {
 		s_pHudBfrMgr->pBuffer, 0, s_pHudBfrMgr->pBuffer->Rows-1,
 		SCREEN_PAL_WIDTH, 1, 2
 	);
+	mapCreate();
+	mapDraw();
+	g_ubGameOver = 0;
 
 	viewLoad(s_pView);
 	logBlockEnd("gameGsCreate()");
@@ -77,11 +81,12 @@ void gameGsLoop(void) {
 		logWrite("new\n");
 	}
 
-	squareProcessPlayer();
-	squareProcessAi();
-	squaresOrderForDraw();
 	vPortWaitForEnd(s_pMainVPort);
 	squaresUndraw();
+	if(!g_ubGameOver)
+		squareProcessPlayer();
+	squareProcessAi();
+	squaresOrderForDraw();
 	squaresDraw();
 }
 

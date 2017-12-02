@@ -4,6 +4,8 @@
 #include <ace/managers/viewport/simplebuffer.h>
 #include <fixmath/fixmath.h>
 
+#define GAME_MAIN_VPORT_HEIGHT 224
+
 extern fix16_t g_pSin[256];
 
 #define cSin(x) g_pSin[x]
@@ -16,5 +18,7 @@ void gameGsLoop(void);
 void gameGsDestroy(void);
 
 extern tSimpleBufferManager *g_pMainBfrMgr;
+
+extern UBYTE g_ubGameOver;
 
 #endif // _LD40_GAMESTATES_GAME_GAME_H
