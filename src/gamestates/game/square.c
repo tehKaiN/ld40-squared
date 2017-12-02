@@ -1,13 +1,44 @@
 #include "gamestates/game/square.h"
 #include <ace/managers/blit.h>
 #include <ace/managers/key.h>
+#include <ace/utils/chunky.h>
 #include "gamestates/game/game.h"
 
 UBYTE s_ubSquareCount;
-tSquare *g_pSquareFirst;
-tSquare *g_pSquareDisplayFirst;
+tSquare *g_pSquareFirst, *g_pSquareDisplayFirst;
 
-tBitMap *s_pSquareBitmap, *s_pSquareBg;
+tBitMap *s_pSquareBitmap, *s_pSquareBg, *s_pDirBitmap;
+
+// Shameless copy from OpenFire's gamemath.h
+UBYTE getAngleBetweenPoints(
+	tUwCoordYX *pSrc, tUwCoordYX *pDst
+) {
+	UWORD uwDx = pDst->sUwCoord.uwX - pSrc->sUwCoord.uwX;
+	UWORD uwDy = pDst->sUwCoord.uwY - pSrc->sUwCoord.uwY;
+	// calc: ubAngle = ((pi + atan2(uwDy, uwDx)) * 128)/pi
+	const fix16_t fPiHalf = fix16_div(fix16_pi, fix16_from_int(2));
+	UBYTE ubAngle = fix16_to_int(
+		fix16_div(
+			fix16_mul(
+				fix16_atan2(fix16_from_int(-uwDy), fix16_from_int(uwDx)),
+				fix16_from_int(64)
+			),
+			fPiHalf
+		)
+	);
+	return ubAngle;
+}
+
+WORD getDeltaAngleDirection(UBYTE ubPrevAngle, UBYTE ubNewAngle, UBYTE ubStep) {
+	WORD wDelta = ubNewAngle - ubPrevAngle;
+	if(ABS(wDelta) < ubStep)
+		ubStep = wDelta;
+	if(!wDelta)
+		return 0;
+	if((wDelta > 0 && wDelta < 128) || wDelta + 256 < 128)
+		return ubStep;
+	return -ubStep;
+}
 
 void squaresManagerCreate(void) {
 	logBlockBegin("squaresManagerCreate()");
@@ -20,6 +51,23 @@ void squaresManagerCreate(void) {
 
 	s_pSquareBg = bitmapCreate(8, 8, 3, BMF_INTERLEAVED | BMF_CLEAR);
 
+	// Generate direction bitmap
+	s_pDirBitmap = bitmapCreate(16, 16*256, 3, BMF_INTERLEAVED | BMF_CLEAR);
+	blitRect(s_pDirBitmap, 16-2, 16/2 - 1, 1, 2, 1);
+	blitRect(s_pDirBitmap, 16-3, 16/2 - 2, 1, 4, 1);
+
+	UBYTE pChunkySource[16*16], pChunkyRotated[16*16];
+	for(UBYTE y = 0; y != 16; ++y)
+		chunkyFromPlanar16(s_pDirBitmap, 0, y, &pChunkySource[16*y]);
+	for(UWORD i = 1; i != 256; ++i) {
+		chunkyRotate(
+			pChunkySource, pChunkyRotated,
+			fix16_div(fix16_pi*i, fix16_from_int(128)), 0, 16, 16
+		);
+		for(UBYTE y = 0; y != 16; ++y)
+			chunkyToPlanar16(&pChunkyRotated[16*y], 0, i*16 + y, s_pDirBitmap);
+	}
+
 	logBlockEnd("squaresManagerCreate()");
 }
 
@@ -30,6 +78,7 @@ void squaresManagerDestroy(void) {
 
 	bitmapDestroy(s_pSquareBitmap);
 	bitmapDestroy(s_pSquareBg);
+	bitmapDestroy(s_pDirBitmap);
 
 	logBlockBegin("squaresManagerDestroy()");
 }
@@ -42,7 +91,7 @@ tSquare *squareAdd(UWORD uwX, UWORD uwY) {
 	pSquare->fY = fix16_from_int(uwY);
 	pSquare->sCoord.sUwCoord.uwX = uwX;
 	pSquare->sCoord.sUwCoord.uwY = uwY;
-	pSquare->ubAngle = 0;
+	pSquare->sPrevCoord.ulYX = pSquare->sCoord.ulYX;
 	pSquare->pDisplayNext = 0;
 	pSquare->pNext = 0;
 
@@ -60,6 +109,12 @@ tSquare *squareAdd(UWORD uwX, UWORD uwY) {
 		pSquare->pPrev = pPrev;
 		pSquare->fSpeed = fSpeedMul;
 	}
+
+	//  Set angle to target
+	pSquare->ubAngle = getAngleBetweenPoints(
+		&pSquare->sCoord, &pSquare->pPrev->sCoord
+	);
+
 	++s_ubSquareCount;
 	return pSquare;
 }
@@ -78,23 +133,95 @@ void squareRemove(tSquare *pSquare) {
 	--s_ubSquareCount;
 }
 
-void squaresUndraw(void) {
-	tSquare *pSquare = g_pSquareFirst;
-	do {
-		blitCopy(
-			s_pSquareBg, 0, 0,
-			g_pMainBfrMgr->pBuffer,
-			pSquare->sCoord.sUwCoord.uwX, pSquare->sCoord.sUwCoord.uwY,
-			8, 8, MINTERM_COOKIE, 0xFF
-		);
-		pSquare->pDisplayNext = 0;
-		pSquare = pSquare->pNext;
-	} while(pSquare);
-	g_pSquareDisplayFirst = 0;
+void squareMove(tSquare *pSquare) {
+	pSquare->fX = fix16_add(pSquare->fX, cCos(pSquare->ubAngle));
+	pSquare->fY = fix16_sub(pSquare->fY, cSin(pSquare->ubAngle));
+	pSquare->sCoord.sUwCoord.uwX = fix16_to_int(pSquare->fX);
+	pSquare->sCoord.sUwCoord.uwY = fix16_to_int(pSquare->fY);
 }
 
-void squaresOrderDraw(void) {
+void squareProcessPlayer(void) {
 	tSquare *pSquare = g_pSquareFirst;
+	UBYTE isMoving = 1;
+
+	if(keyCheck(KEY_W)) {
+		// Desination angle: 64
+		if(pSquare->ubAngle != 64) {
+			if(pSquare->ubAngle > 192 || pSquare->ubAngle < 64)
+				++pSquare->ubAngle;
+			else
+				--pSquare->ubAngle;
+		}
+	}
+	else if(keyCheck(KEY_S)) {
+		// Destination angle: 192
+		if(pSquare->ubAngle != 192) {
+			if(pSquare->ubAngle < 64 || pSquare->ubAngle > 192)
+				--pSquare->ubAngle;
+			else
+				++pSquare->ubAngle;
+		}
+	}
+	else if(keyCheck(KEY_A)) {
+		// Destination angle: 128
+		if(pSquare->ubAngle != 128) {
+			if(pSquare->ubAngle < 128)
+				++pSquare->ubAngle;
+			else
+				--pSquare->ubAngle;
+		}
+	}
+	else if(keyCheck(KEY_D)) {
+		// Destination angle: 0
+		if(pSquare->ubAngle) {
+			if(pSquare->ubAngle != 0) {
+				if(pSquare->ubAngle > 128)
+					++pSquare->ubAngle;
+				else
+					--pSquare->ubAngle;
+			}
+		}
+	}
+	else
+		isMoving = 0;
+	if(isMoving) {
+		squareMove(pSquare);
+	}
+}
+
+void squareProcessAi(void) {
+	if(!g_pSquareFirst)
+		return;
+	tSquare *pSquare = g_pSquareFirst->pNext;
+	while(pSquare) {
+		tSquare *pTarget = pSquare->pPrev;
+		if(!pTarget)
+			continue;
+
+		// Update angle
+		WORD wDx = pTarget->sCoord.sUwCoord.uwX - pSquare->sCoord.sUwCoord.uwX;
+		WORD wDy = pTarget->sCoord.sUwCoord.uwY - pSquare->sCoord.sUwCoord.uwY;
+		UBYTE ubDestAngle = getAngleBetweenPoints(&pSquare->sCoord, &pTarget->sCoord);
+		pSquare->ubAngle += getDeltaAngleDirection(pSquare->ubAngle, ubDestAngle, 4);
+
+		// Move if too far
+		if(ABS(wDx) > 9 || ABS(wDy) > 9)
+			squareMove(pSquare);
+		pSquare = pSquare->pNext;
+	}
+}
+
+void squaresOrderForDraw(void) {
+	// Clear display order
+	g_pSquareDisplayFirst = 0;
+	tSquare *pSquare = g_pSquareFirst;
+	while(pSquare) {
+		pSquare->pDisplayNext = 0;
+		pSquare = pSquare->pNext;
+	}
+
+	// Create new order
+	pSquare = g_pSquareFirst;
 	while(pSquare) {
 		// First one?
 		if(!g_pSquareDisplayFirst) {
@@ -132,47 +259,50 @@ void squaresOrderDraw(void) {
 	}
 }
 
-void squareConstrainPos(tSquare *pSquare) {
-	pSquare->sCoord.sUwCoord.uwX = fix16_to_int(pSquare->fX);
-	pSquare->sCoord.sUwCoord.uwY = fix16_to_int(pSquare->fY);
-}
+void squaresUndraw(void) {
+	// Direction arrow
+	blitRect(
+		g_pMainBfrMgr->pBuffer,
+		g_pSquareFirst->sPrevCoord.sUwCoord.uwX-4,
+		g_pSquareFirst->sPrevCoord.sUwCoord.uwY-4,
+		16, 16, 0
+	);
 
-void squareProcessPlayer(void) {
 	tSquare *pSquare = g_pSquareFirst;
-
-	if(keyCheck(KEY_W))
-		pSquare->fY -= fix16_one;
-	else if(keyCheck(KEY_S))
-		pSquare->fY += fix16_one;
-	if(keyCheck(KEY_A))
-		pSquare->fX -= fix16_one;
-	else if(keyCheck(KEY_D))
-		pSquare->fX += fix16_one;
-
-	squareConstrainPos(pSquare);
-}
-
-void squareProcessAi(void) {
-	if(!g_pSquareFirst)
-		return;
-	tSquare *pSquare = g_pSquareFirst->pNext;
 	while(pSquare) {
-		tSquare *pTarget = pSquare->pPrev;
-		if(!pTarget)
-			continue;
-		WORD wDx = pTarget->sCoord.sUwCoord.uwX - pSquare->sCoord.sUwCoord.uwX;
-		WORD wDy = pTarget->sCoord.sUwCoord.uwY - pSquare->sCoord.sUwCoord.uwY;
-		if(ABS(wDx) > 8)
-			pSquare->fX += fix16_mul(fix16_from_int(SGN(wDx)), pSquare->fSpeed);
-		if(ABS(wDy) > 8)
-			pSquare->fY += fix16_mul(fix16_from_int(SGN(wDy)), pSquare->fSpeed);
-
-		squareConstrainPos(pSquare);
+		blitCopy(
+			s_pSquareBg, 0, 0,
+			g_pMainBfrMgr->pBuffer,
+			pSquare->sPrevCoord.sUwCoord.uwX, pSquare->sPrevCoord.sUwCoord.uwY,
+			8, 8, MINTERM_COOKIE, 0xFF
+		);
 		pSquare = pSquare->pNext;
 	}
 }
 
 void squaresDraw(void) {
+	// Draw direction arrow
+	if(!g_pSquareFirst)
+		return;
+	blitCopy(
+		s_pDirBitmap, 0, g_pSquareFirst->ubAngle << 4, g_pMainBfrMgr->pBuffer,
+		g_pSquareFirst->sCoord.sUwCoord.uwX-4, g_pSquareFirst->sCoord.sUwCoord.uwY-4,
+		16, 16, MINTERM_COOKIE, 0xFF
+	);
+
+
+	{ // DEBUG direction arrows
+	// tSquare *pSquare = g_pSquareDisplayFirst;
+	// while(pSquare) {
+	// 	blitCopy(
+	// 		s_pDirBitmap, 0, pSquare->ubAngle << 4, g_pMainBfrMgr->pBuffer,
+	// 		pSquare->sCoord.sUwCoord.uwX-4, pSquare->sCoord.sUwCoord.uwY-4,
+	// 		16, 16, MINTERM_COOKIE, 0xFF
+	// 	);
+	// 	pSquare = pSquare->pDisplayNext;
+	// }
+	}	// DEBUG END direction arrows
+
 	tSquare *pSquare = g_pSquareDisplayFirst;
 	while(pSquare) {
 		blitCopy(
@@ -181,6 +311,7 @@ void squaresDraw(void) {
 			pSquare->sCoord.sUwCoord.uwX, pSquare->sCoord.sUwCoord.uwY,
 			8, 8, MINTERM_COOKIE, 0xFF
 		);
+		pSquare->sPrevCoord.ulYX = pSquare->sCoord.ulYX;
 		pSquare = pSquare->pDisplayNext;
 	}
 }

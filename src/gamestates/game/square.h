@@ -15,10 +15,8 @@ typedef struct _tSquare {
 	fix16_t fY;
 	fix16_t fSpeed;
 	tUwCoordYX sCoord;
+	tUwCoordYX sPrevCoord;
 } tSquare;
-
-extern tSquare *g_pSquareFirst;
-extern tSquare *g_pSquareDisplayFirst;
 
 void squaresManagerCreate(void);
 
@@ -32,7 +30,7 @@ void squaresDraw(void);
 
 void squaresUndraw(void);
 
-void squaresOrderDraw(void);
+void squaresOrderForDraw(void);
 
 void squareProcessPlayer(void);
 void squareProcessAi(void);

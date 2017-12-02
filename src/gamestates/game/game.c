@@ -14,6 +14,8 @@ static tSimpleBufferManager *s_pHudBfrMgr;
 #define GAME_MAIN_VPORT_HEIGHT 224
 #define GAME_HUD_VPORT_HEIGHT (SCREEN_PAL_HEIGHT - GAME_MAIN_VPORT_HEIGHT)
 
+fix16_t g_pSin[256];
+
 void gameGsCreate(void) {
 	logBlockBegin("gameGsCreate()");
 	const UWORD pPalette[8] = {0x000, 0xFFF, 0x333};
@@ -44,6 +46,13 @@ void gameGsCreate(void) {
 	TAG_DONE);
 	copBlockDisableSprites(s_pView->pCopList, 0xFF);
 
+	// Generate sine table
+	// Precision is too small to multiply pi by 255, later to be divided by 128
+	// so here's multiplying pi/2 by 255 and divided by 64
+	fix16_t fHalfPi = fix16_div(fix16_pi, fix16_from_int(2));
+	for(UWORD i = 0; i < 256; ++i)
+		g_pSin[i] = fix16_sin(fix16_div(fHalfPi * i, fix16_from_int(64)));
+
 	randInit(2184);
 	squaresManagerCreate();
 	squareAdd(100, 100);
@@ -63,16 +72,17 @@ void gameGsLoop(void) {
 		gameClose();
 		return;
 	}
-	if(keyUse(KEY_N))
+	if(keyUse(KEY_N)) {
 		squareAdd(160, 160);
+		logWrite("new\n");
+	}
 
-	squaresUndraw();
 	squareProcessPlayer();
 	squareProcessAi();
-	squaresOrderDraw();
-	squaresDraw();
-
+	squaresOrderForDraw();
 	vPortWaitForEnd(s_pMainVPort);
+	squaresUndraw();
+	squaresDraw();
 }
 
 void gameGsDestroy(void) {
