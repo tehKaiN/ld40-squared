@@ -262,10 +262,15 @@ void squareProcessAi(void) {
 		UBYTE ubDestAngle = getAngleBetweenPoints(&pSquare->sCoord, &pTarget->sCoord);
 		pSquare->ubAngle += getDeltaAngleDirection(pSquare->ubAngle, ubDestAngle, 4);
 
+		// Current may cease to exist during movement - save 'next' for continuing
+		tSquare *pNext = pSquare->pNext;
+
 		// Move if too far
 		if(ABS(wDx) > 9 || ABS(wDy) > 9)
 			squareMove(pSquare);
-		pSquare = pSquare->pNext;
+
+		// Process next
+		pSquare = pNext;
 	}
 }
 
