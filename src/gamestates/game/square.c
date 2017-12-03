@@ -324,8 +324,12 @@ void squareProcessAi(void) {
 		tSquare *pNext = pSquare->pNext;
 
 		// Move if too far
-		if(ABS(wDx) > 9 || ABS(wDy) > 9)
-			squareMove(pSquare);
+		if(ABS(wDx) > 9 || ABS(wDy) > 9) {
+			if(!squareMove(pSquare) && g_isHard) {
+				g_ubGameOver = 1;
+				logWrite("BEB\n");
+			}
+		}
 
 		// Process next
 		pSquare = pNext;

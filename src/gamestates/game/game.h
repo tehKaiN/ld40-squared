@@ -21,6 +21,6 @@ extern tSimpleBufferManager *g_pMainBfrMgr;
 
 extern UBYTE g_ubGameOver;
 extern UBYTE g_ubStartX, g_ubStartY;
-extern UBYTE g_isExit;
+extern UBYTE g_isExit, g_isHard;
 
 #endif // _LD40_GAMESTATES_GAME_GAME_H

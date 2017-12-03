@@ -15,6 +15,7 @@ static tSimpleBufferManager *s_pHudBfrMgr;
 UBYTE g_ubGameOver;
 UBYTE g_ubStartX, g_ubStartY; ///<- Start tile coords
 UBYTE g_isExit;
+UBYTE g_isHard = 0;
 tBitMap *s_pGameOverBitmap;
 tFont *s_pFont;
 
@@ -151,6 +152,8 @@ void gameGsLoop(void) {
 
 	vPortWaitForEnd(s_pMainVPort);
 	squareProcessPlayer();
+	squaresUndraw();
+	squareProcessAi();
 	if(g_ubGameOver) {
 		displayGameOver();
 		gameChangeLoop(gameGsGameOverLoop);
@@ -160,8 +163,6 @@ void gameGsLoop(void) {
 		gameClose();
 		return;
 	}
-	squaresUndraw();
-	squareProcessAi();
 	squaresOrderForDraw();
 	squaresDraw();
 }
