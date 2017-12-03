@@ -184,7 +184,7 @@ tSquare *squareAdd(UWORD uwX, UWORD uwY) {
 
 void squareRemove(tSquare *pSquare) {
 	// Detach from list
-	pSquare->pNext->pPrev = 0;
+	pSquare->pNext->pPrev = pSquare->pPrev;
 	if(pSquare->pPrev)
 		pSquare->pPrev->pNext = pSquare->pNext;
 	else
