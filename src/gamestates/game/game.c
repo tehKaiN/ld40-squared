@@ -18,12 +18,37 @@ UBYTE g_isExit;
 UBYTE g_isHard = 0;
 tBitMap *s_pGameOverBitmap;
 tFont *s_pFont;
+UBYTE g_ubCurrMap;
+UWORD g_uwScore, s_uwHiScore = 0;
 
 #define GAME_HUD_VPORT_HEIGHT (SCREEN_PAL_HEIGHT - GAME_MAIN_VPORT_HEIGHT)
 
 fix16_t g_pSin[256];
 
-void retryLevel() {
+void hudUpdate(void) {
+	static UWORD uwPrevScore = 0xFFFF;
+	static UBYTE ubPrevSquareCount = 0xFF;
+	static UWORD uwPrevHiScore = 0xFFFF;
+
+	if(uwPrevScore != g_uwScore || ubPrevSquareCount != g_ubSquareCount) {
+		char szScore[30];
+		UBYTE ubScoreFromSquares = g_ubSquareCount << 1;
+		sprintf(szScore, "Score %hu (+%hhu)", g_uwScore, ubScoreFromSquares);
+		blitRect(s_pHudBfrMgr->pBuffer, 0, 0, 160, 5, 0);
+		fontDrawStr(s_pHudBfrMgr->pBuffer, s_pFont, 0, 0, szScore, 1, FONT_COOKIE);
+		uwPrevScore = g_uwScore;
+		ubPrevSquareCount = g_ubSquareCount;
+	}
+	if(uwPrevHiScore != s_uwHiScore) {
+		char szHiScore[20];
+		sprintf(szHiScore, "hi-score: %hu", s_uwHiScore);
+		blitRect(s_pHudBfrMgr->pBuffer, 200, 0, 100, 5, 0);
+		fontDrawStr(s_pHudBfrMgr->pBuffer, s_pFont, 200, 0, szHiScore, 1, FONT_COOKIE);
+		uwPrevHiScore = s_uwHiScore;
+	}
+}
+
+void loadLevel() {
 	viewLoad(0);
 	blitRect(
 		g_pMainBfrMgr->pBuffer, 0, 0,
@@ -34,11 +59,13 @@ void retryLevel() {
 
 	squaresManagerClear();
 
-	mapCreate("map1.txt");
+	char szName[10];
+	sprintf(szName, "map%hhu.txt", g_ubCurrMap);
+	mapCreate(szName);
 	mapDraw();
 	g_ubGameOver = 0;
 	g_isExit = 0;
-	squareAdd(g_ubStartX << 3, (g_ubStartY << 3) - 8);
+	squareAdd(g_ubStartX << 3, g_ubStartY << 3);
 
 	gameChangeLoop(gameGsLoop);
 
@@ -62,11 +89,13 @@ void displayGameOver(void) {
 		"'R' to retry, 'ESC' to quit",
 		1, FONT_HCENTER | FONT_TOP | FONT_COOKIE
 	);
+	g_uwScore = 0;
+	g_ubCurrMap = 0;
 }
 
 void gameGsCreate(void) {
 	logBlockBegin("gameGsCreate()");
-	const UWORD pPalette[8] = {0x000, 0xFFF, 0x333, 0xF00, 0xAA0, 0x0F0};
+	const UWORD pPalette[8] = {0x000, 0xFFF, 0x333, 0xF00, 0x999, 0x0F0};
 	s_pView = viewCreate(0,
 		TAG_VIEW_GLOBAL_CLUT, 1,
 	TAG_DONE);
@@ -115,7 +144,9 @@ void gameGsCreate(void) {
 	s_pFont = fontCreate("data/silkscreen5.fnt");
 	s_pGameOverBitmap = bitmapCreateFromFile("data/gameover.bm");
 
-	retryLevel();
+	g_ubCurrMap = 0;
+	g_uwScore = 0;
+	loadLevel();
 
 	viewLoad(s_pView);
 	logBlockEnd("gameGsCreate()");
@@ -123,7 +154,7 @@ void gameGsCreate(void) {
 
 void gameGsGameOverLoop(void) {
 	if(keyUse(KEY_R)) {
-		retryLevel();
+		loadLevel();
 		return;
 	}
 	else if(keyUse(KEY_ESCAPE)) {
@@ -135,34 +166,42 @@ void gameGsGameOverLoop(void) {
 
 void gameGsLoop(void) {
 	if(keyUse(KEY_R)) {
-		retryLevel();
+		loadLevel();
 		return;
 	}
 	else if(keyUse(KEY_ESCAPE)) {
 		gameClose();
 		return;
 	}
-	if(keyUse(KEY_N)) {
+	else if(keyUse(KEY_N)) {
+		// DEBUG
 		squareAdd(
 			g_pSquareFirst->sCoord.sUwCoord.uwX - 16 + uwRandMinMax(0, 32),
 			g_pSquareFirst->sCoord.sUwCoord.uwY - 16 + uwRandMinMax(0, 32)
 		);
 		logWrite("new\n");
 	}
+	hudUpdate();
 
 	vPortWaitForEnd(s_pMainVPort);
 	squareProcessPlayer();
 	squaresUndraw();
 	squareProcessAi();
+
 	if(g_ubGameOver) {
 		displayGameOver();
 		gameChangeLoop(gameGsGameOverLoop);
 		return;
 	}
 	else if(g_isExit) {
-		gameClose();
+		++g_ubCurrMap;
+		if(g_ubCurrMap >= MAP_COUNT)
+			g_ubCurrMap = 0;
+		g_uwScore += g_ubSquareCount << 1;
+		loadLevel();
 		return;
 	}
+
 	squaresOrderForDraw();
 	squaresDraw();
 }

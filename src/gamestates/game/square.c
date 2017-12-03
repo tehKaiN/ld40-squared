@@ -6,7 +6,7 @@
 #include "gamestates/game/game.h"
 #include "gamestates/game/map.h"
 
-UBYTE s_ubSquareCount;
+UBYTE g_ubSquareCount;
 tSquare *g_pSquareFirst, *g_pSquareDisplayFirst;
 
 tBitMap *s_pSquareBitmap, *s_pSquareBg, *s_pDirBitmap;
@@ -97,7 +97,7 @@ WORD getDeltaAngleDirection(UBYTE ubPrevAngle, UBYTE ubNewAngle, UBYTE ubStep) {
 
 void squaresManagerCreate(void) {
 	logBlockBegin("squaresManagerCreate()");
-	s_ubSquareCount = 0;
+	g_ubSquareCount = 0;
 	g_pSquareFirst = 0;
 	g_pSquareDisplayFirst = 0;
 
@@ -178,7 +178,7 @@ tSquare *squareAdd(UWORD uwX, UWORD uwY) {
 		&pSquare->sCoord, &pSquare->pPrev->sCoord
 	);
 
-	++s_ubSquareCount;
+	++g_ubSquareCount;
 	return pSquare;
 }
 
@@ -193,7 +193,7 @@ void squareRemove(tSquare *pSquare) {
 
 	// Free mem
 	memFree(pSquare, sizeof(tSquare));
-	--s_ubSquareCount;
+	--g_ubSquareCount;
 }
 
 UBYTE squareMove(tSquare *pSquare) {
@@ -217,9 +217,13 @@ UBYTE squareMove(tSquare *pSquare) {
 			squareRemove(pSquare);
 			return 0;
 		case MAP_TILE_EXIT:
-			if(pSquare == g_pSquareFirst)
+			if(pSquare == g_pSquareFirst) {
 				g_isExit = 1;
-			break;
+				break;
+			}
+			g_uwScore += 1;
+			squareRemove(pSquare);
+			return 1;
 	}
 
 	uwTileY = (pPos->sUwCoord.uwY+7) >> 3;
@@ -232,9 +236,13 @@ UBYTE squareMove(tSquare *pSquare) {
 			squareRemove(pSquare);
 			return 0;
 		case MAP_TILE_EXIT:
-			if(pSquare == g_pSquareFirst)
+			if(pSquare == g_pSquareFirst) {
 				g_isExit = 1;
-			break;
+				break;
+			}
+			g_uwScore += 1;
+			squareRemove(pSquare);
+			return 1;
 	}
 
 	uwTileX = (pPos->sUwCoord.uwX+7) >> 3;
@@ -247,9 +255,13 @@ UBYTE squareMove(tSquare *pSquare) {
 			squareRemove(pSquare);
 			return 0;
 		case MAP_TILE_EXIT:
-			if(pSquare == g_pSquareFirst)
+			if(pSquare == g_pSquareFirst) {
 				g_isExit = 1;
-			break;
+				break;
+			}
+			g_uwScore += 1;
+			squareRemove(pSquare);
+			return 1;
 	}
 
 	uwTileY = pPos->sUwCoord.uwY >> 3;
@@ -262,9 +274,13 @@ UBYTE squareMove(tSquare *pSquare) {
 			squareRemove(pSquare);
 			return 0;
 		case MAP_TILE_EXIT:
-			if(pSquare == g_pSquareFirst)
+			if(pSquare == g_pSquareFirst) {
 				g_isExit = 1;
-			break;
+				break;
+			}
+			g_uwScore += 1;
+			squareRemove(pSquare);
+			return 1;
 	}
 	return 1;
 }
