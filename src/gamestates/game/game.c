@@ -82,10 +82,10 @@ void loadLevel() {
 }
 
 void displayGameOver(void) {
-	if(g_uwScore > g_uwLoScore) {
-		gameChangeState(menuGsCreate, menuGsLoop, menuGsDestroy);
-		return;
-	}
+	// if(g_uwScore > g_uwLoScore) {
+	// 	gameChangeState(menuGsCreate, menuGsLoop, menuGsDestroy);
+	// 	return;
+	// }
 	const UWORD uwWidth = 220;
 	const UWORD uwHeight = 130;
 	const UWORD uwStartX = (SCREEN_PAL_WIDTH - uwWidth)/2;
@@ -197,10 +197,12 @@ void gameGsLoop(void) {
 		return;
 	}
 	else if(g_isExit) {
-		++g_ubCurrMap;
-		if(g_ubCurrMap >= MAP_COUNT)
-			g_ubCurrMap = 0;
 		g_uwScore += g_ubSquareCount << 1;
+		++g_ubCurrMap;
+		if(g_ubCurrMap >= MAP_COUNT) {
+			gameChangeState(menuGsCreate, menuGsLoop, menuGsDestroy);
+			return;
+		}
 		loadLevel();
 		return;
 	}
