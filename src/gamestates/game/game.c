@@ -19,7 +19,7 @@ UBYTE g_isHard = 0;
 tBitMap *s_pGameOverBitmap;
 tFont *s_pFont;
 UBYTE g_ubCurrMap;
-UWORD g_uwScore, s_uwHiScore = 0;
+UWORD g_uwScore, s_uwHiScore = 10;
 
 #define GAME_HUD_VPORT_HEIGHT (SCREEN_PAL_HEIGHT - GAME_MAIN_VPORT_HEIGHT)
 
@@ -38,12 +38,19 @@ void hudUpdate(void) {
 		fontDrawStr(s_pHudBfrMgr->pBuffer, s_pFont, 0, 0, szScore, 1, FONT_COOKIE);
 		uwPrevScore = g_uwScore;
 		ubPrevSquareCount = g_ubSquareCount;
+		if(g_uwScore > s_uwHiScore)
+			s_uwHiScore = g_uwScore;
 	}
 	if(uwPrevHiScore != s_uwHiScore) {
 		char szHiScore[20];
 		sprintf(szHiScore, "hi-score: %hu", s_uwHiScore);
 		blitRect(s_pHudBfrMgr->pBuffer, 200, 0, 100, 5, 0);
-		fontDrawStr(s_pHudBfrMgr->pBuffer, s_pFont, 200, 0, szHiScore, 1, FONT_COOKIE);
+		UBYTE ubColor;
+		if(g_uwScore == s_uwHiScore)
+			ubColor = 5;
+		else
+			ubColor = 1;
+		fontDrawStr(s_pHudBfrMgr->pBuffer, s_pFont, 200, 0, szHiScore, ubColor, FONT_COOKIE);
 		uwPrevHiScore = s_uwHiScore;
 	}
 }

@@ -18,6 +18,6 @@ void mapDraw(void);
 
 extern UBYTE g_pMap[MAP_WIDTH][MAP_HEIGHT];
 
-#define MAP_COUNT 2
+#define MAP_COUNT 4
 
 #endif // _LD40_GAMESTATES_GAME_MAP_H
