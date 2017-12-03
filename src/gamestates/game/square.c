@@ -1,6 +1,7 @@
 #include "gamestates/game/square.h"
 #include <ace/managers/blit.h>
 #include <ace/managers/key.h>
+#include <ace/managers/joy.h>
 #include <ace/utils/chunky.h>
 #include "gamestates/game/game.h"
 #include "gamestates/game/map.h"
@@ -220,25 +221,25 @@ void squareProcessPlayer(void) {
 	UBYTE ubDestAngle = 0xFF;
 
 	// NOTE: This is nasty but I guess it's quickest, think of something better?
-	if(keyCheck(KEY_W)) {
-		if(keyCheck(KEY_A))
+	if(keyCheck(KEY_W) || joyPeek(JOY1_UP)) {
+		if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT))
 			ubDestAngle = 96;
-		else if(keyCheck(KEY_D))
+		else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT))
 			ubDestAngle = 32;
 		else
 			ubDestAngle = 64;
 	}
-	else if(keyCheck(KEY_S)) {
-		if(keyCheck(KEY_A))
+	else if(keyCheck(KEY_S) || joyPeek(JOY1_DOWN)) {
+		if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT))
 			ubDestAngle = 160;
-		else if(keyCheck(KEY_D))
+		else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT))
 			ubDestAngle = 224;
 		else
 			ubDestAngle = 192;
 	}
-	else if(keyCheck(KEY_A))
+	else if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT))
 		ubDestAngle = 128;
-	else if(keyCheck(KEY_D))
+	else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT))
 		ubDestAngle = 0;
 
 	if(ubDestAngle != 0xFF) {
