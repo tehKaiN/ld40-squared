@@ -9,7 +9,7 @@
 UBYTE g_ubSquareCount;
 tSquare *g_pSquareFirst, *g_pSquareDisplayFirst;
 
-tBitMap *s_pSquareBitmap, *s_pSquareBg, *s_pDirBitmap;
+tBitMap *s_pSquareBitmap, *s_pSquareBg;
 
 // Copied from ACE, forced sine table use
 void chunkyRotateTabled(
@@ -60,6 +60,34 @@ void chunkyRotateTabled(
 	}
 }
 
+void squareBitmapGenerate(void) {
+	tBitMap *pSource = bitmapCreate(16,16, 3, BMF_INTERLEAVED);
+	tBitMap *pRotated = bitmapCreate(16,16, 3, BMF_INTERLEAVED);
+	s_pSquareBitmap = bitmapCreate(8, 8*256, 3, BMF_INTERLEAVED | BMF_CLEAR);
+	blitRect(pSource, 0, 0, 16, 16, 1);
+	blitRect(pSource, 8-2, 16/2 - 3, 1, 5, 0);
+	blitRect(pSource, 8-1, 16/2 - 2, 1, 3, 0);
+	blitRect(pSource, 8-0, 16/2 - 1, 1, 1, 0);
+
+	UBYTE pChunkySource[16*16], pChunkyRotated[16*16];
+	for(UBYTE y = 0; y != 16; ++y)
+		chunkyFromPlanar16(pSource, 0, y, &pChunkySource[16*y]);
+	for(UWORD i = 0; i != 256; ++i) {
+		chunkyRotateTabled(pChunkySource, pChunkyRotated,	i, 0, 16, 16);
+		for(UBYTE y = 0; y != 16; ++y)
+			chunkyToPlanar16(&pChunkyRotated[16*y], 0, y, pRotated);
+		blitCopy(pRotated, 4, 4, s_pSquareBitmap, 0, i*8, 8, 8, MINTERM_COOKIE, 0xFF);
+	}
+	bitmapDestroy(pSource);
+	bitmapDestroy(pRotated);
+
+	bitmapSave(s_pSquareBitmap, "data/square.bm");
+}
+
+void squareBitmapLoad(void) {
+	s_pSquareBitmap = bitmapCreateFromFile("data/square.bm");
+}
+
 // Shameless copy from OpenFire's gamemath.h
 UBYTE getAngleBetweenPoints(
 	tUwCoordYX *pSrc, tUwCoordYX *pDst
@@ -101,31 +129,9 @@ void squaresManagerCreate(void) {
 	g_pSquareFirst = 0;
 	g_pSquareDisplayFirst = 0;
 
-	s_pSquareBitmap = bitmapCreate(8, 8, 3, BMF_INTERLEAVED);
-	blitRect(s_pSquareBitmap, 0, 0, 8, 8, 1);
-
+	// squareBitmapGenerate();
+	squareBitmapLoad();
 	s_pSquareBg = bitmapCreate(8, 8, 3, BMF_INTERLEAVED | BMF_CLEAR);
-
-	// Generate direction bitmap
-	tBitMap *pSource = bitmapCreate(16,16, 3, BMF_INTERLEAVED);
-	tBitMap *pRotated = bitmapCreate(16,16, 3, BMF_INTERLEAVED);
-	s_pDirBitmap = bitmapCreate(8, 8*256, 3, BMF_INTERLEAVED | BMF_CLEAR);
-	blitRect(pSource, 0, 0, 16, 16, 1);
-	blitRect(pSource, 8-2, 16/2 - 3, 1, 5, 0);
-	blitRect(pSource, 8-1, 16/2 - 2, 1, 3, 0);
-	blitRect(pSource, 8-0, 16/2 - 1, 1, 1, 0);
-
-	UBYTE pChunkySource[16*16], pChunkyRotated[16*16];
-	for(UBYTE y = 0; y != 16; ++y)
-		chunkyFromPlanar16(pSource, 0, y, &pChunkySource[16*y]);
-	for(UWORD i = 0; i != 256; ++i) {
-		chunkyRotateTabled(pChunkySource, pChunkyRotated,	i, 0, 16, 16);
-		for(UBYTE y = 0; y != 16; ++y)
-			chunkyToPlanar16(&pChunkyRotated[16*y], 0, y, pRotated);
-		blitCopy(pRotated, 4, 4, s_pDirBitmap, 0, i*8, 8, 8, MINTERM_COOKIE, 0xFF);
-	}
-	bitmapDestroy(pSource);
-	bitmapDestroy(pRotated);
 
 	logBlockEnd("squaresManagerCreate()");
 }
@@ -139,9 +145,8 @@ void squaresManagerDestroy(void) {
 	logBlockBegin("squaresManagerDestroy()");
 	squaresManagerClear();
 
-	bitmapDestroy(s_pSquareBitmap);
 	bitmapDestroy(s_pSquareBg);
-	bitmapDestroy(s_pDirBitmap);
+	bitmapDestroy(s_pSquareBitmap);
 
 	logBlockBegin("squaresManagerDestroy()");
 }
@@ -419,7 +424,7 @@ void squaresDraw(void) {
 	tSquare *pSquare = g_pSquareDisplayFirst;
 	while(pSquare) {
 		blitCopy(
-			s_pDirBitmap, 0, pSquare->ubAngle << 3,
+			s_pSquareBitmap, 0, pSquare->ubAngle << 3,
 			g_pMainBfrMgr->pBuffer,
 			pSquare->sCoord.sUwCoord.uwX, pSquare->sCoord.sUwCoord.uwY,
 			8, 8, MINTERM_COOKIE, 0xFF

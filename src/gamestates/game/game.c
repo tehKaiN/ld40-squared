@@ -95,7 +95,7 @@ void displayGameOver(void) {
 
 void gameGsCreate(void) {
 	logBlockBegin("gameGsCreate()");
-	const UWORD pPalette[8] = {0x000, 0xFFF, 0x333, 0xF00, 0x999, 0x0F0};
+	const UWORD pPalette[8] = {0x000, 0xFFF, 0x333, 0x900, 0x999, 0x0F0};
 	s_pView = viewCreate(0,
 		TAG_VIEW_GLOBAL_CLUT, 1,
 	TAG_DONE);
@@ -133,12 +133,6 @@ void gameGsCreate(void) {
 
 	randInit(2184);
 	squaresManagerCreate();
-
-	// Hud
-	blitRect(
-		s_pHudBfrMgr->pBuffer, 0, s_pHudBfrMgr->pBuffer->Rows-1,
-		SCREEN_PAL_WIDTH, 1, 2
-	);
 
 	// Game over stuff
 	s_pFont = fontCreate("data/silkscreen5.fnt");
