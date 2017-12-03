@@ -1,5 +1,4 @@
 #include "gamestates/menu/menu.h"
-#include <ace/managers/viewport/simplebuffer.h>
 #include <ace/managers/key.h>
 #include <ace/managers/joy.h>
 #include <ace/managers/game.h>
@@ -7,16 +6,17 @@
 #include <ace/utils/font.h>
 #include <ace/generic/screen.h>
 #include <fixmath/fixmath.h>
+#include "main.h"
 #include "maths.h"
 #include "gamestates/game/game.h"
+#include "gamestates/menu/score.h"
 
 static tView *s_pView;
 static tVPort *s_pVPort;
-static tSimpleBufferManager *s_pBfrMgr;
+tSimpleBufferManager *g_pMenuBfrMgr;
 
 static tBitMap *s_pLetters[7];
 
-static tFont *s_pFont;
 static UBYTE s_ubMenuPos, s_ubPrevMenuPos;
 
 #define MENU_ITEM_COUNT 4
@@ -46,27 +46,17 @@ void vPortWaitForPos(tVPort *pVPort, UWORD uwLine) {
 
 char *s_pEntryTxts[MENU_ITEM_COUNT] = {"Easy", "Nightmare", "Scores", "Enough"};
 
-void drawMenu(void) {
-	for(UBYTE i = 0; i < MENU_ITEM_COUNT; ++i) {
-		fontDrawStr(
-			s_pBfrMgr->pBuffer, s_pFont,
-			SCREEN_PAL_WIDTH>>1, (SCREEN_PAL_HEIGHT>>1) + 10*i,
-			s_pEntryTxts[i], 2, FONT_CENTER
-		);
-	}
-}
-
 void updateMenuPos(void) {
 	const UBYTE pEntryColors[MENU_ITEM_COUNT] = {1, 3, 1, 1};
 
 	fontDrawStr(
-		s_pBfrMgr->pBuffer, s_pFont,
+		g_pMenuBfrMgr->pBuffer, g_pFont,
 		SCREEN_PAL_WIDTH>>1, (SCREEN_PAL_HEIGHT>>1) + 10*s_ubPrevMenuPos,
 		s_pEntryTxts[s_ubPrevMenuPos], 2, FONT_CENTER
 	);
 
 	fontDrawStr(
-		s_pBfrMgr->pBuffer, s_pFont,
+		g_pMenuBfrMgr->pBuffer, g_pFont,
 		SCREEN_PAL_WIDTH>>1, (SCREEN_PAL_HEIGHT>>1) + 10*s_ubMenuPos,
 		s_pEntryTxts[s_ubMenuPos], pEntryColors[s_ubMenuPos], FONT_CENTER
 	);
@@ -86,8 +76,8 @@ void menuGsCreate(void) {
 		TAG_VPORT_PALETTE_PTR, pPalette,
 		TAG_VPORT_PALETTE_SIZE, 8,
 	TAG_DONE);
-	s_pBfrMgr = simpleBufferCreate(0,
-		TAG_SIMPLEBUFFER_BITMAP_FLAGS, BMF_CLEAR | BMF_INTERLEAVED,
+	g_pMenuBfrMgr = simpleBufferCreate(0,
+		TAG_SIMPLEBUFFER_BITMAP_FLAGS, BMF_INTERLEAVED,
 		TAG_SIMPLEBUFFER_VPORT, s_pVPort,
 	TAG_DONE);
 	copBlockDisableSprites(s_pView->pCopList, 0xFF);
@@ -100,11 +90,29 @@ void menuGsCreate(void) {
 	s_pLetters[5] = bitmapCreateFromFile("data/logo/e.bm");
 	s_pLetters[6] = bitmapCreateFromFile("data/logo/d.bm");
 
-	s_pFont = fontCreate("data/silkscreen5.fnt");
+	scoreLoadBest();
 
+	if(g_uwScore > g_uwLoScore)
+		scoreDisplay(1);
+	else
+		menuDraw();
+}
+
+void menuDraw(void) {
+	viewLoad(0);
+
+	blitRect(g_pMenuBfrMgr->pBuffer, 0, 0, SCREEN_PAL_WIDTH, SCREEN_PAL_HEIGHT, 0);
 	s_ubMenuPos = 0;
 	s_ubPrevMenuPos = 0;
-	drawMenu();
+
+	for(UBYTE i = 0; i < MENU_ITEM_COUNT; ++i) {
+		fontDrawStr(
+			g_pMenuBfrMgr->pBuffer, g_pFont,
+			SCREEN_PAL_WIDTH>>1, (SCREEN_PAL_HEIGHT>>1) + 10*i,
+			s_pEntryTxts[i], 2, FONT_CENTER
+		);
+	}
+
 	updateMenuPos();
 
 	viewLoad(s_pView);
@@ -123,7 +131,7 @@ void menuGsLoop(void) {
 		fix16_t fY = fFifteen + fix16_mul(fFifteen,cSin((2*ubTime + i*16) & 0xFF));
 		blitCopy(
 			s_pLetters[i], 0, 0,
-			s_pBfrMgr->pBuffer, 20 + 40*i, fix16_to_int(fY),
+			g_pMenuBfrMgr->pBuffer, 20 + 40*i, fix16_to_int(fY),
 			40, 42, MINTERM_COOKIE, 0xFF
 		);
 	}
@@ -151,7 +159,8 @@ void menuGsLoop(void) {
 				gameChangeState(gameGsCreate, gameGsLoop, gameGsDestroy);
 				return;
 			case 2:
-				// gameChangeState(scoreGsCreate, scoreGsLoop, scoreGsDestroy);
+				scoreDisplay(0);
+				return;
 			case 3:
 				gameClose();
 				return;
@@ -163,8 +172,6 @@ void menuGsLoop(void) {
 
 void menuGsDestroy(void) {
 	viewDestroy(s_pView);
-
-	fontDestroy(s_pFont);
 
 	for(UBYTE i = 0; i != 7; ++i)
 		bitmapDestroy(s_pLetters[i]);

@@ -18,6 +18,6 @@ extern tSimpleBufferManager *g_pMainBfrMgr;
 extern UBYTE g_ubGameOver;
 extern UBYTE g_ubStartX, g_ubStartY;
 extern UBYTE g_isExit, g_isHard;
-extern UWORD g_uwScore;
+extern UWORD g_uwScore, g_uwHiScore, g_uwLoScore;
 
 #endif // _LD40_GAMESTATES_GAME_GAME_H

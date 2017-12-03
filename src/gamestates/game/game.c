@@ -5,6 +5,7 @@
 #include <ace/managers/rand.h>
 #include <ace/utils/font.h>
 #include <ace/generic/screen.h>
+#include "main.h"
 #include "gamestates/game/square.h"
 #include "gamestates/game/map.h"
 #include "gamestates/menu/menu.h"
@@ -18,15 +19,15 @@ UBYTE g_ubStartX, g_ubStartY; ///<- Start tile coords
 UBYTE g_isExit;
 UBYTE g_isHard = 0;
 static tBitMap *s_pGameOverBitmap;
-static tFont *s_pFont;
 UBYTE g_ubCurrMap;
-UWORD g_uwScore;
-static UWORD s_uwHiScore = 10;
+UWORD g_uwScore = 0;
+UWORD g_uwHiScore, g_uwLoScore;
 
 static UWORD s_uwPrevScore;
 static UBYTE s_ubPrevSquareCount;
 static UWORD s_uwPrevHiScore;
 
+void gameGsGameOverLoop(void);
 
 #define GAME_HUD_VPORT_HEIGHT (SCREEN_PAL_HEIGHT - GAME_MAIN_VPORT_HEIGHT)
 
@@ -36,23 +37,23 @@ void hudUpdate(void) {
 		UBYTE ubScoreFromSquares = g_ubSquareCount << 1;
 		sprintf(szScore, "Score %hu (+%hhu)", g_uwScore, ubScoreFromSquares);
 		blitRect(s_pHudBfrMgr->pBuffer, 0, 0, 160, 5, 0);
-		fontDrawStr(s_pHudBfrMgr->pBuffer, s_pFont, 0, 0, szScore, 1, FONT_COOKIE);
+		fontDrawStr(s_pHudBfrMgr->pBuffer, g_pFont, 0, 0, szScore, 1, FONT_COOKIE);
 		s_uwPrevScore = g_uwScore;
 		s_ubPrevSquareCount = g_ubSquareCount;
-		if(g_uwScore > s_uwHiScore)
-			s_uwHiScore = g_uwScore;
+		if(g_uwScore > g_uwHiScore)
+			g_uwHiScore = g_uwScore;
 	}
-	if(s_uwPrevHiScore != s_uwHiScore) {
+	if(s_uwPrevHiScore != g_uwHiScore) {
 		char szHiScore[20];
-		sprintf(szHiScore, "hi-score: %hu", s_uwHiScore);
+		sprintf(szHiScore, "hi-score: %hu", g_uwHiScore);
 		blitRect(s_pHudBfrMgr->pBuffer, 200, 0, 100, 5, 0);
 		UBYTE ubColor;
-		if(g_uwScore == s_uwHiScore)
+		if(g_uwScore == g_uwHiScore)
 			ubColor = 5;
 		else
 			ubColor = 1;
-		fontDrawStr(s_pHudBfrMgr->pBuffer, s_pFont, 200, 0, szHiScore, ubColor, FONT_COOKIE);
-		s_uwPrevHiScore = s_uwHiScore;
+		fontDrawStr(s_pHudBfrMgr->pBuffer, g_pFont, 200, 0, szHiScore, ubColor, FONT_COOKIE);
+		s_uwPrevHiScore = g_uwHiScore;
 	}
 }
 
@@ -81,6 +82,10 @@ void loadLevel() {
 }
 
 void displayGameOver(void) {
+	if(g_uwScore > g_uwLoScore) {
+		gameChangeState(menuGsCreate, menuGsLoop, menuGsDestroy);
+		return;
+	}
 	const UWORD uwWidth = 220;
 	const UWORD uwHeight = 130;
 	const UWORD uwStartX = (SCREEN_PAL_WIDTH - uwWidth)/2;
@@ -93,12 +98,13 @@ void displayGameOver(void) {
 		MINTERM_COOKIE, 0xFF
 	);
 	fontDrawStr(
-		g_pMainBfrMgr->pBuffer, s_pFont, SCREEN_PAL_WIDTH/2, uwStartY + 2 + 105 + 5,
+		g_pMainBfrMgr->pBuffer, g_pFont, SCREEN_PAL_WIDTH/2, uwStartY + 2 + 105 + 5,
 		"'R' to retry, 'ESC' to quit",
 		1, FONT_HCENTER | FONT_TOP | FONT_COOKIE
 	);
 	g_uwScore = 0;
 	g_ubCurrMap = 0;
+	gameChangeLoop(gameGsGameOverLoop);
 }
 
 void gameGsCreate(void) {
@@ -135,7 +141,6 @@ void gameGsCreate(void) {
 	squaresManagerCreate();
 
 	// Game over stuff
-	s_pFont = fontCreate("data/silkscreen5.fnt");
 	s_pGameOverBitmap = bitmapCreateFromFile("data/gameover.bm");
 
 	// HUD stuff
@@ -189,7 +194,6 @@ void gameGsLoop(void) {
 
 	if(g_ubGameOver) {
 		displayGameOver();
-		gameChangeLoop(gameGsGameOverLoop);
 		return;
 	}
 	else if(g_isExit) {
@@ -209,7 +213,6 @@ void gameGsDestroy(void) {
 	viewDestroy(s_pView);
 
 	bitmapDestroy(s_pGameOverBitmap);
-	fontDestroy(s_pFont);
 
 	squaresManagerDestroy();
 }

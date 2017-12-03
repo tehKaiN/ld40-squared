@@ -7,6 +7,8 @@
 #include "gamestates/menu/menu.h"
 #include "maths.h"
 
+tFont *g_pFont;
+
 // This is a copypasta from OpenFire - ACE doesn't have this implemented in proper way
 void inputProcess() {
 	ULONG ulWindowSignal;
@@ -50,6 +52,8 @@ void genericCreate(void) {
 	joyOpen();
 	mathsInit();
 
+	g_pFont = fontCreate("data/silkscreen5.fnt");
+
 	gamePushState(menuGsCreate, menuGsLoop, menuGsDestroy); // gamePushState vs gameChangeState
 }
 
@@ -59,6 +63,7 @@ void genericProcess(void) {
 }
 
 void genericDestroy(void) {
+	fontDestroy(g_pFont);
 	mouseClose();
 	joyClose();
 }
