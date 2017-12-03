@@ -13,7 +13,8 @@ static tVPort *s_pMainVPort, *s_pHudVPort;
 tSimpleBufferManager *g_pMainBfrMgr;
 static tSimpleBufferManager *s_pHudBfrMgr;
 UBYTE g_ubGameOver;
-UBYTE g_ubStartX, g_ubStartY;
+UBYTE g_ubStartX, g_ubStartY; ///<- Start tile coords
+UBYTE g_isExit;
 tBitMap *s_pGameOverBitmap;
 tFont *s_pFont;
 
@@ -35,6 +36,7 @@ void retryLevel() {
 	mapCreate("map1.txt");
 	mapDraw();
 	g_ubGameOver = 0;
+	g_isExit = 0;
 	squareAdd(g_ubStartX << 3, (g_ubStartY << 3) - 8);
 
 	gameChangeLoop(gameGsLoop);
@@ -63,7 +65,7 @@ void displayGameOver(void) {
 
 void gameGsCreate(void) {
 	logBlockBegin("gameGsCreate()");
-	const UWORD pPalette[8] = {0x000, 0xFFF, 0x333, 0xF00, 0x0A0};
+	const UWORD pPalette[8] = {0x000, 0xFFF, 0x333, 0xF00, 0xAA0, 0x0F0};
 	s_pView = viewCreate(0,
 		TAG_VIEW_GLOBAL_CLUT, 1,
 	TAG_DONE);
@@ -152,6 +154,10 @@ void gameGsLoop(void) {
 	if(g_ubGameOver) {
 		displayGameOver();
 		gameChangeLoop(gameGsGameOverLoop);
+		return;
+	}
+	else if(g_isExit) {
+		gameClose();
 		return;
 	}
 	squaresUndraw();

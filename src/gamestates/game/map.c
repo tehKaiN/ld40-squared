@@ -30,6 +30,10 @@ void mapCreate(const char *szMapName) {
 				g_ubStartY = y;
 				logWrite("Start: %hhu, %hhu\n", x, y);
 			}
+			else if(c == 'E') {
+				g_pMap[x][y] = MAP_TILE_EXIT;
+				logWrite("Exit: %hhu, %hhu\n", x, y);
+			}
 			else
 				logWrite("ERR: Unknown char: %c (0x%02X) at %hhu,%hhu\n", c, c, x, y);
 			++x;
@@ -66,6 +70,9 @@ void mapDraw(void) {
 					break;
 				case MAP_TILE_PICKUP:
 					blitRect(g_pMainBfrMgr->pBuffer, x<<3, y<<3, 8, 8, 4);
+					break;
+				case MAP_TILE_EXIT:
+					blitRect(g_pMainBfrMgr->pBuffer, x<<3, y<<3, 8, 8, 5);
 					break;
 			}
 		}

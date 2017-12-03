@@ -203,40 +203,68 @@ UBYTE squareMove(tSquare *pSquare) {
 	pSquare->sCoord.sUwCoord.uwY = fix16_to_int(pSquare->fY);
 
 	const tUwCoordYX *pPos = &pSquare->sCoord;
-	if(
-		g_pMap[pPos->sUwCoord.uwX >> 3][pPos->sUwCoord.uwY >> 3] == MAP_TILE_BEB ||
-		g_pMap[pPos->sUwCoord.uwX >> 3][(pPos->sUwCoord.uwY+7) >> 3] == MAP_TILE_BEB ||
-		g_pMap[(pPos->sUwCoord.uwX+7) >> 3][pPos->sUwCoord.uwY >> 3] == MAP_TILE_BEB ||
-		g_pMap[(pPos->sUwCoord.uwX+7) >> 3][(pPos->sUwCoord.uwY+7) >> 3] == MAP_TILE_BEB
-	) {
-		squareRemove(pSquare);
-		return 0;
-	}
 
+	// Pickups & exit & death
 	UWORD uwTileX, uwTileY;
 	uwTileX = pPos->sUwCoord.uwX >> 3;
 	uwTileY = pPos->sUwCoord.uwY >> 3;
-	if(g_pMap[uwTileX][uwTileY] == MAP_TILE_PICKUP) {
-		squareAdd(uwTileX << 3, uwTileY << 3);
-		g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+	switch(g_pMap[uwTileX][uwTileY]) {
+		case MAP_TILE_PICKUP:
+			squareAdd(uwTileX << 3, uwTileY << 3);
+			g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+			break;
+		case MAP_TILE_BEB:
+			squareRemove(pSquare);
+			return 0;
+		case MAP_TILE_EXIT:
+			if(pSquare == g_pSquareFirst)
+				g_isExit = 1;
+			break;
 	}
 
 	uwTileY = (pPos->sUwCoord.uwY+7) >> 3;
-	if(g_pMap[uwTileX][uwTileY] == MAP_TILE_PICKUP) {
-		squareAdd(uwTileX << 3, uwTileY << 3);
-		g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+	switch(g_pMap[uwTileX][uwTileY]) {
+		case MAP_TILE_PICKUP:
+			squareAdd(uwTileX << 3, uwTileY << 3);
+			g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+			break;
+		case MAP_TILE_BEB:
+			squareRemove(pSquare);
+			return 0;
+		case MAP_TILE_EXIT:
+			if(pSquare == g_pSquareFirst)
+				g_isExit = 1;
+			break;
 	}
 
 	uwTileX = (pPos->sUwCoord.uwX+7) >> 3;
-	if(g_pMap[uwTileX][uwTileY] == MAP_TILE_PICKUP) {
-		squareAdd(uwTileX << 3, uwTileY << 3);
-		g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+	switch(g_pMap[uwTileX][uwTileY]) {
+		case MAP_TILE_PICKUP:
+			squareAdd(uwTileX << 3, uwTileY << 3);
+			g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+			break;
+		case MAP_TILE_BEB:
+			squareRemove(pSquare);
+			return 0;
+		case MAP_TILE_EXIT:
+			if(pSquare == g_pSquareFirst)
+				g_isExit = 1;
+			break;
 	}
 
 	uwTileY = pPos->sUwCoord.uwY >> 3;
-	if(g_pMap[uwTileX][uwTileY] == MAP_TILE_PICKUP) {
-		squareAdd(uwTileX << 3, uwTileY << 3);
-		g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+	switch(g_pMap[uwTileX][uwTileY]) {
+		case MAP_TILE_PICKUP:
+			squareAdd(uwTileX << 3, uwTileY << 3);
+			g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+			break;
+		case MAP_TILE_BEB:
+			squareRemove(pSquare);
+			return 0;
+		case MAP_TILE_EXIT:
+			if(pSquare == g_pSquareFirst)
+				g_isExit = 1;
+			break;
 	}
 	return 1;
 }
