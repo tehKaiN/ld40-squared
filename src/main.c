@@ -4,6 +4,8 @@
 #include <ace/managers/joy.h>
 #include <ace/managers/mouse.h>
 #include "gamestates/game/game.h"
+#include "gamestates/menu/menu.h"
+#include "maths.h"
 
 // This is a copypasta from OpenFire - ACE doesn't have this implemented in proper way
 void inputProcess() {
@@ -46,8 +48,9 @@ void inputProcess() {
 void genericCreate(void) {
 	mouseOpen();
 	joyOpen();
+	mathsInit();
 
-	gamePushState(gameGsCreate, gameGsLoop, gameGsDestroy); // gamePushState vs gameChangeState
+	gamePushState(menuGsCreate, menuGsLoop, menuGsDestroy); // gamePushState vs gameChangeState
 }
 
 void genericProcess(void) {

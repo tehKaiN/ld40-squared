@@ -7,6 +7,7 @@
 #include <ace/generic/screen.h>
 #include "gamestates/game/square.h"
 #include "gamestates/game/map.h"
+#include "gamestates/menu/menu.h"
 
 static tView *s_pView;
 static tVPort *s_pMainVPort, *s_pHudVPort;
@@ -16,32 +17,32 @@ UBYTE g_ubGameOver;
 UBYTE g_ubStartX, g_ubStartY; ///<- Start tile coords
 UBYTE g_isExit;
 UBYTE g_isHard = 0;
-tBitMap *s_pGameOverBitmap;
-tFont *s_pFont;
+static tBitMap *s_pGameOverBitmap;
+static tFont *s_pFont;
 UBYTE g_ubCurrMap;
-UWORD g_uwScore, s_uwHiScore = 10;
+UWORD g_uwScore;
+static UWORD s_uwHiScore = 10;
+
+static UWORD s_uwPrevScore;
+static UBYTE s_ubPrevSquareCount;
+static UWORD s_uwPrevHiScore;
+
 
 #define GAME_HUD_VPORT_HEIGHT (SCREEN_PAL_HEIGHT - GAME_MAIN_VPORT_HEIGHT)
 
-fix16_t g_pSin[256];
-
 void hudUpdate(void) {
-	static UWORD uwPrevScore = 0xFFFF;
-	static UBYTE ubPrevSquareCount = 0xFF;
-	static UWORD uwPrevHiScore = 0xFFFF;
-
-	if(uwPrevScore != g_uwScore || ubPrevSquareCount != g_ubSquareCount) {
+	if(s_uwPrevScore != g_uwScore || s_ubPrevSquareCount != g_ubSquareCount) {
 		char szScore[30];
 		UBYTE ubScoreFromSquares = g_ubSquareCount << 1;
 		sprintf(szScore, "Score %hu (+%hhu)", g_uwScore, ubScoreFromSquares);
 		blitRect(s_pHudBfrMgr->pBuffer, 0, 0, 160, 5, 0);
 		fontDrawStr(s_pHudBfrMgr->pBuffer, s_pFont, 0, 0, szScore, 1, FONT_COOKIE);
-		uwPrevScore = g_uwScore;
-		ubPrevSquareCount = g_ubSquareCount;
+		s_uwPrevScore = g_uwScore;
+		s_ubPrevSquareCount = g_ubSquareCount;
 		if(g_uwScore > s_uwHiScore)
 			s_uwHiScore = g_uwScore;
 	}
-	if(uwPrevHiScore != s_uwHiScore) {
+	if(s_uwPrevHiScore != s_uwHiScore) {
 		char szHiScore[20];
 		sprintf(szHiScore, "hi-score: %hu", s_uwHiScore);
 		blitRect(s_pHudBfrMgr->pBuffer, 200, 0, 100, 5, 0);
@@ -51,7 +52,7 @@ void hudUpdate(void) {
 		else
 			ubColor = 1;
 		fontDrawStr(s_pHudBfrMgr->pBuffer, s_pFont, 200, 0, szHiScore, ubColor, FONT_COOKIE);
-		uwPrevHiScore = s_uwHiScore;
+		s_uwPrevHiScore = s_uwHiScore;
 	}
 }
 
@@ -130,20 +131,17 @@ void gameGsCreate(void) {
 	TAG_DONE);
 	copBlockDisableSprites(s_pView->pCopList, 0xFF);
 
-	// Read sine table
-	// Generated using libfixmath with floats enabled, dumped to file
-	FILE *pSinFile = fopen("data/sin.dat", "rb");
-	for(UWORD i = 0; i < 256; ++i) {
-		fread(&g_pSin[i], sizeof(fix16_t), 1, pSinFile);
-	}
-	fclose(pSinFile);
-
 	randInit(2184);
 	squaresManagerCreate();
 
 	// Game over stuff
 	s_pFont = fontCreate("data/silkscreen5.fnt");
 	s_pGameOverBitmap = bitmapCreateFromFile("data/gameover.bm");
+
+	// HUD stuff
+	s_uwPrevScore = 0xFFFF;
+	s_ubPrevSquareCount = 0xFF;
+	s_uwPrevHiScore = 0xFFFF;
 
 	g_ubCurrMap = 0;
 	g_uwScore = 0;
@@ -159,7 +157,7 @@ void gameGsGameOverLoop(void) {
 		return;
 	}
 	else if(keyUse(KEY_ESCAPE)) {
-		gameClose();
+		gameChangeState(menuGsCreate, menuGsLoop, menuGsDestroy);
 		return;
 	}
 	vPortWaitForEnd(s_pMainVPort);
@@ -171,7 +169,7 @@ void gameGsLoop(void) {
 		return;
 	}
 	else if(keyUse(KEY_ESCAPE)) {
-		gameClose();
+		gameChangeState(menuGsCreate, menuGsLoop, menuGsDestroy);
 		return;
 	}
 	else if(keyUse(KEY_N)) {

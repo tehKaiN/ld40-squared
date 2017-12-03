@@ -3,6 +3,7 @@
 #include <ace/managers/key.h>
 #include <ace/managers/joy.h>
 #include <ace/utils/chunky.h>
+#include "maths.h"
 #include "gamestates/game/game.h"
 #include "gamestates/game/map.h"
 
@@ -148,7 +149,7 @@ void squaresManagerDestroy(void) {
 	bitmapDestroy(s_pSquareBg);
 	bitmapDestroy(s_pSquareBitmap);
 
-	logBlockBegin("squaresManagerDestroy()");
+	logBlockEnd("squaresManagerDestroy()");
 }
 
 tSquare *squareAdd(UWORD uwX, UWORD uwY) {
