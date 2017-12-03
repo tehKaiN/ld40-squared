@@ -32,7 +32,7 @@ void retryLevel() {
 
 	squaresManagerClear();
 
-	mapCreate("map0.txt");
+	mapCreate("map1.txt");
 	mapDraw();
 	g_ubGameOver = 0;
 	squareAdd(g_ubStartX << 3, (g_ubStartY << 3) - 8);

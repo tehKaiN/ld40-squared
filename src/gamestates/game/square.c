@@ -203,17 +203,42 @@ UBYTE squareMove(tSquare *pSquare) {
 	pSquare->sCoord.sUwCoord.uwY = fix16_to_int(pSquare->fY);
 
 	const tUwCoordYX *pPos = &pSquare->sCoord;
-	if(g_pMap[pPos->sUwCoord.uwX >> 3][pPos->sUwCoord.uwY >> 3] == MAP_TILE_BEB)
+	if(
+		g_pMap[pPos->sUwCoord.uwX >> 3][pPos->sUwCoord.uwY >> 3] == MAP_TILE_BEB ||
+		g_pMap[pPos->sUwCoord.uwX >> 3][(pPos->sUwCoord.uwY+7) >> 3] == MAP_TILE_BEB ||
+		g_pMap[(pPos->sUwCoord.uwX+7) >> 3][pPos->sUwCoord.uwY >> 3] == MAP_TILE_BEB ||
+		g_pMap[(pPos->sUwCoord.uwX+7) >> 3][(pPos->sUwCoord.uwY+7) >> 3] == MAP_TILE_BEB
+	) {
 		squareRemove(pSquare);
-	else if(g_pMap[pPos->sUwCoord.uwX >> 3][(pPos->sUwCoord.uwY+7) >> 3] == MAP_TILE_BEB)
-		squareRemove(pSquare);
-	else if(g_pMap[(pPos->sUwCoord.uwX+7) >> 3][pPos->sUwCoord.uwY >> 3] == MAP_TILE_BEB)
-		squareRemove(pSquare);
-	else if(g_pMap[(pPos->sUwCoord.uwX+7) >> 3][(pPos->sUwCoord.uwY+7) >> 3] == MAP_TILE_BEB)
-		squareRemove(pSquare);
-	else
-		return 1;
-	return 0;
+		return 0;
+	}
+
+	UWORD uwTileX, uwTileY;
+	uwTileX = pPos->sUwCoord.uwX >> 3;
+	uwTileY = pPos->sUwCoord.uwY >> 3;
+	if(g_pMap[uwTileX][uwTileY] == MAP_TILE_PICKUP) {
+		squareAdd(uwTileX << 3, uwTileY << 3);
+		g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+	}
+
+	uwTileY = (pPos->sUwCoord.uwY+7) >> 3;
+	if(g_pMap[uwTileX][uwTileY] == MAP_TILE_PICKUP) {
+		squareAdd(uwTileX << 3, uwTileY << 3);
+		g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+	}
+
+	uwTileX = (pPos->sUwCoord.uwX+7) >> 3;
+	if(g_pMap[uwTileX][uwTileY] == MAP_TILE_PICKUP) {
+		squareAdd(uwTileX << 3, uwTileY << 3);
+		g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+	}
+
+	uwTileY = pPos->sUwCoord.uwY >> 3;
+	if(g_pMap[uwTileX][uwTileY] == MAP_TILE_PICKUP) {
+		squareAdd(uwTileX << 3, uwTileY << 3);
+		g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+	}
+	return 1;
 }
 
 void squareProcessPlayer(void) {

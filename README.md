@@ -10,14 +10,12 @@ This game is made for Amiga hardware. It should run on any Amiga just fine. Runn
 - <kbd>W</kbd> <kbd>S</kbd> <kbd>A</kbd> <kbd>D</kbd> - movement
 - <kbd>R</kbd> - retry
 - <kbd>ESC</kbd> - quit
-- <kbd>Space</kbd> - action (attach)
 
 ## Joystick controls
 
 Use joystick in port 2.
 
 - Directions - movement
-- Fire - action (attach)
 
 ## Stuff used
 
