@@ -20,6 +20,8 @@ typedef struct _tSquare {
 
 void squaresManagerCreate(void);
 
+void squaresManagerClear(void);
+
 void squaresManagerDestroy(void);
 
 tSquare *squareAdd(UWORD uwX, UWORD uwY);

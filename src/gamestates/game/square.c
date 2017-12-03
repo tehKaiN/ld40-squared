@@ -129,10 +129,14 @@ void squaresManagerCreate(void) {
 	logBlockEnd("squaresManagerCreate()");
 }
 
-void squaresManagerDestroy(void) {
-	logBlockBegin("squaresManagerDestroy()");
+void squaresManagerClear(void) {
 	while(g_pSquareFirst)
 		squareRemove(g_pSquareFirst);
+}
+
+void squaresManagerDestroy(void) {
+	logBlockBegin("squaresManagerDestroy()");
+	squaresManagerClear();
 
 	bitmapDestroy(s_pSquareBitmap);
 	bitmapDestroy(s_pSquareBg);

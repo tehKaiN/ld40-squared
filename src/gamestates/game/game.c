@@ -3,6 +3,7 @@
 #include <ace/managers/game.h>
 #include <ace/managers/blit.h>
 #include <ace/managers/rand.h>
+#include <ace/utils/font.h>
 #include <ace/generic/screen.h>
 #include "gamestates/game/square.h"
 #include "gamestates/game/map.h"
@@ -13,10 +14,52 @@ tSimpleBufferManager *g_pMainBfrMgr;
 static tSimpleBufferManager *s_pHudBfrMgr;
 UBYTE g_ubGameOver;
 UBYTE g_ubStartX, g_ubStartY;
+tBitMap *s_pGameOverBitmap;
+tFont *s_pFont;
 
 #define GAME_HUD_VPORT_HEIGHT (SCREEN_PAL_HEIGHT - GAME_MAIN_VPORT_HEIGHT)
 
 fix16_t g_pSin[256];
+
+void retryLevel() {
+	viewLoad(0);
+	blitRect(
+		g_pMainBfrMgr->pBuffer, 0, 0,
+		bitmapGetByteWidth(g_pMainBfrMgr->pBuffer) << 3,
+		g_pMainBfrMgr->pBuffer->Rows,
+		0
+	);
+
+	squaresManagerClear();
+
+	mapCreate("map0.txt");
+	mapDraw();
+	g_ubGameOver = 0;
+	squareAdd(g_ubStartX << 3, (g_ubStartY << 3) - 8);
+
+	gameChangeLoop(gameGsLoop);
+
+	viewLoad(s_pView);
+}
+
+void displayGameOver(void) {
+	const UWORD uwWidth = 220;
+	const UWORD uwHeight = 130;
+	const UWORD uwStartX = (SCREEN_PAL_WIDTH - uwWidth)/2;
+	const UWORD uwStartY = (SCREEN_PAL_HEIGHT - uwHeight)/2 - GAME_HUD_VPORT_HEIGHT;
+	blitRect(g_pMainBfrMgr->pBuffer, uwStartX,  uwStartY, uwWidth, uwHeight, 1);
+	blitRect(g_pMainBfrMgr->pBuffer, uwStartX +1,  uwStartY +1, uwWidth -2, uwHeight -2, 0);
+	blitCopy(
+		s_pGameOverBitmap, 0, 0, g_pMainBfrMgr->pBuffer,
+		uwStartX + (uwWidth-208)/2, uwStartY + 2, 208, 105,
+		MINTERM_COOKIE, 0xFF
+	);
+	fontDrawStr(
+		g_pMainBfrMgr->pBuffer, s_pFont, SCREEN_PAL_WIDTH/2, uwStartY + 2 + 105 + 5,
+		"'R' to retry, 'ESC' to quit",
+		1, FONT_HCENTER | FONT_TOP | FONT_COOKIE
+	);
+}
 
 void gameGsCreate(void) {
 	logBlockBegin("gameGsCreate()");
@@ -43,7 +86,7 @@ void gameGsCreate(void) {
 		TAG_SIMPLEBUFFER_VPORT, s_pHudVPort,
 	TAG_DONE);
 	g_pMainBfrMgr = simpleBufferCreate(0,
-		TAG_SIMPLEBUFFER_BITMAP_FLAGS, BMF_CLEAR | BMF_INTERLEAVED,
+		TAG_SIMPLEBUFFER_BITMAP_FLAGS, BMF_INTERLEAVED,
 		TAG_SIMPLEBUFFER_VPORT, s_pMainVPort,
 	TAG_DONE);
 	copBlockDisableSprites(s_pView->pCopList, 0xFF);
@@ -64,17 +107,35 @@ void gameGsCreate(void) {
 		s_pHudBfrMgr->pBuffer, 0, s_pHudBfrMgr->pBuffer->Rows-1,
 		SCREEN_PAL_WIDTH, 1, 2
 	);
-	mapCreate("map0.txt");
-	mapDraw();
-	g_ubGameOver = 0;
-	squareAdd(g_ubStartX << 3, (g_ubStartY << 3) - 8);
+
+	// Game over stuff
+	s_pFont = fontCreate("data/silkscreen5.fnt");
+	s_pGameOverBitmap = bitmapCreateFromFile("data/gameover.bm");
+
+	retryLevel();
 
 	viewLoad(s_pView);
 	logBlockEnd("gameGsCreate()");
 }
 
+void gameGsGameOverLoop(void) {
+	if(keyUse(KEY_R)) {
+		retryLevel();
+		return;
+	}
+	else if(keyUse(KEY_ESCAPE)) {
+		gameClose();
+		return;
+	}
+	vPortWaitForEnd(s_pMainVPort);
+}
+
 void gameGsLoop(void) {
-	if(keyUse(KEY_ESCAPE)) {
+	if(keyUse(KEY_R)) {
+		retryLevel();
+		return;
+	}
+	else if(keyUse(KEY_ESCAPE)) {
 		gameClose();
 		return;
 	}
@@ -87,9 +148,13 @@ void gameGsLoop(void) {
 	}
 
 	vPortWaitForEnd(s_pMainVPort);
+	squareProcessPlayer();
+	if(g_ubGameOver) {
+		displayGameOver();
+		gameChangeLoop(gameGsGameOverLoop);
+		return;
+	}
 	squaresUndraw();
-	if(!g_ubGameOver)
-		squareProcessPlayer();
 	squareProcessAi();
 	squaresOrderForDraw();
 	squaresDraw();
@@ -97,6 +162,9 @@ void gameGsLoop(void) {
 
 void gameGsDestroy(void) {
 	viewDestroy(s_pView);
+
+	bitmapDestroy(s_pGameOverBitmap);
+	fontDestroy(s_pFont);
 
 	squaresManagerDestroy();
 }
