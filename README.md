@@ -6,6 +6,8 @@ This game was my first ever entry to Ludum Dare. Also, it's basically a test if 
 
 This game is made for Amiga hardware. It should run on any Amiga just fine. Running from HDD is recommended.
 
+Since there was no time for optimizations, code is far from polished. Strong CPU is required - 20MHz or faster. On stock 68000@7MHz you *will* experience flickering.
+
 ## Keyboard controls
 - <kbd>W</kbd> <kbd>S</kbd> <kbd>A</kbd> <kbd>D</kbd> - movement
 - <kbd>R</kbd> - retry
