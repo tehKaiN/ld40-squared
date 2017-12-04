@@ -20,5 +20,5 @@ Use joystick in port 2.
 ## Stuff used
 
 - [Amiga C Engine](https://github.com/tehKaiN/ACE)
-- Silkscreen font by
+- [Silkscreen font](https://www.dafont.com/silkscreen.font) by Jason Aleksandr Kottke
 - [Qbicle font](https://www.dafont.com/qbicle.font) by Brian Kent
