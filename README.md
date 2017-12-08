@@ -1,6 +1,10 @@
 # Squared - a Ludum Dare 40 game
 
+![Squared logo](https://github.com/tehKaiN/ld40/raw/master/logo.png)
+
 This game was my first ever entry to Ludum Dare. Also, it's basically a test if ACE is good enough for rapid game development. As it turns out, it's not that polished ATM. ;)
+
+[Squared on ldjam.com](https://ldjam.com/events/ludum-dare/40/squared)
 
 ## System requirements
 
