@@ -1,4 +1,7 @@
 # Squared - a Ludum Dare 40 game
+<div style="text-align:center;">
+<img src="https://raw.githubusercontent.com/tehKaiN/ld40-squared/master/logo.png" />
+</div>
 
 ![Squared logo](https://raw.githubusercontent.com/tehKaiN/ld40-squared/master/logo.png)
 
