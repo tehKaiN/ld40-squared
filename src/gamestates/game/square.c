@@ -12,55 +12,6 @@ tSquare *g_pSquareFirst, *g_pSquareDisplayFirst;
 
 tBitMap *s_pSquareBitmap, *s_pSquareBg;
 
-// Copied from ACE, forced sine table use
-void chunkyRotateTabled(
-	UBYTE *pSource, UBYTE *pDest,
-	UBYTE ubAngle, UBYTE ubBgColor,
-	WORD wWidth, WORD wHeight
-) {
-	fix16_t fSin, fCos, fCx, fCy;
-	WORD x,y;
-	WORD u,v;
-
-	fCx = fix16_div(fix16_from_int(wWidth-1), fix16_from_int(2));
-	fCy = fix16_div(fix16_from_int(wHeight-1), fix16_from_int(2));
-
-	// For each of new bitmap's pixel sample color from rotated source x,y
-	fSin = cSin(ubAngle);
-	fCos = cCos(ubAngle);
-	fix16_t dx, dy;
-	for(y = 0; y != wHeight; ++y) {
-		dy = fix16_sub(fix16_from_int(y), fCy);
-		for(x = 0; x != wWidth; ++x) {
-			dx = fix16_sub(fix16_from_int(x), fCx);
-			// u = round(fCos*(x-fCx) - fSin*(y-fCy) +(fCx));
-			u = fix16_to_int(
-				fix16_add(
-					fix16_sub(
-						fix16_mul(fCos, dx),
-						fix16_mul(fSin, dy)),
-					fCx
-				)
-			);
-			// v = fix16_to_int(fSin*(x-fCx) + fCos*(y-fCy) +(fCy));
-			v = fix16_to_int(
-				fix16_add(
-					fix16_add(
-						fix16_mul(fSin, dx),
-						fix16_mul(fCos, dy)
-					),
-					fCy
-				)
-			);
-
-			if(u < 0 || v < 0 || u >= wWidth || v >= wHeight)
-				pDest[y*wWidth + x] = ubBgColor;
-			else
-				pDest[y*wWidth + x] = pSource[v*wWidth + u];
-		}
-	}
-}
-
 void squareBitmapGenerate(void) {
 	tBitMap *pSource = bitmapCreate(16,16, 3, BMF_INTERLEAVED);
 	tBitMap *pRotated = bitmapCreate(16,16, 3, BMF_INTERLEAVED);
@@ -74,7 +25,7 @@ void squareBitmapGenerate(void) {
 	for(UBYTE y = 0; y != 16; ++y)
 		chunkyFromPlanar16(pSource, 0, y, &pChunkySource[16*y]);
 	for(UWORD i = 0; i != 256; ++i) {
-		chunkyRotateTabled(pChunkySource, pChunkyRotated,	i, 0, 16, 16);
+		chunkyRotate(pChunkySource, pChunkyRotated,	cSin(i), cCos(i), 0, 16, 16);
 		for(UBYTE y = 0; y != 16; ++y)
 			chunkyToPlanar16(&pChunkyRotated[16*y], 0, y, pRotated);
 		blitCopy(pRotated, 4, 4, s_pSquareBitmap, 0, i*8, 8, 8, MINTERM_COOKIE, 0xFF);
