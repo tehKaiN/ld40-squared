@@ -1,5 +1,6 @@
 #include "gamestates/game/map.h"
 #include <ace/managers/blit.h>
+#include <ace/utils/file.h>
 
 UBYTE g_pMap[MAP_WIDTH][MAP_HEIGHT];
 
@@ -7,13 +8,13 @@ void mapCreate(const char *szMapName) {
 	logBlockBegin("mapCreate(szMapName: %s)", szMapName);
 	char szPath[200];
 	sprintf(szPath, "data/%s", szMapName);
-	FILE *pMapFile = fopen(szPath, "rb");
+	tFile *pMapFile = fileOpen(szPath, "rb");
 	if(pMapFile) {
 		UWORD uwCharCnt = 0;
 		UBYTE x = 0, y = 0;
 		while(uwCharCnt < MAP_HEIGHT * MAP_WIDTH) {
 			UBYTE c;
-			fread(&c, 1, 1, pMapFile);
+			fileRead(pMapFile, &c, 1);
 
 			// Skip whitespace
 			if(c < 32)
@@ -43,7 +44,7 @@ void mapCreate(const char *szMapName) {
 			}
 			++uwCharCnt;
 		}
-		fclose(pMapFile);
+		fileClose(pMapFile);
 	}
 	else {
 		logWrite("ERR: Map %s not found\n", szPath);

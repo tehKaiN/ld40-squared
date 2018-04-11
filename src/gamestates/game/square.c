@@ -247,30 +247,39 @@ void squareProcessPlayer(void) {
 	UBYTE ubDestAngle = 0xFF;
 
 	// NOTE: This is nasty but I guess it's quickest, think of something better?
-	if(keyCheck(KEY_W) || joyPeek(JOY1_UP)) {
-		if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT))
+	if(keyCheck(KEY_W) || joyPeek(JOY1_UP) || keyCheck(KEY_UP)) {
+		if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT) || keyCheck(KEY_LEFT)) {
 			ubDestAngle = 96;
-		else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT))
+		}
+		else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT) || keyCheck(KEY_RIGHT)) {
 			ubDestAngle = 32;
-		else
+		}
+		else {
 			ubDestAngle = 64;
+		}
 	}
-	else if(keyCheck(KEY_S) || joyPeek(JOY1_DOWN)) {
-		if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT))
+	else if(keyCheck(KEY_S) || joyPeek(JOY1_DOWN) || keyCheck(KEY_DOWN)) {
+		if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT) || keyCheck(KEY_LEFT)) {
 			ubDestAngle = 160;
-		else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT))
+		}
+		else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT) || keyCheck(KEY_RIGHT)) {
 			ubDestAngle = 224;
-		else
+		}
+		else {
 			ubDestAngle = 192;
+		}
 	}
-	else if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT))
+	else if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT) || keyCheck(KEY_LEFT)) {
 		ubDestAngle = 128;
-	else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT))
+	}
+	else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT) || keyCheck(KEY_RIGHT)) {
 		ubDestAngle = 0;
+	}
 
 	if(ubDestAngle != 0xFF) {
-		if(pSquare->ubAngle != ubDestAngle)
+		if(pSquare->ubAngle != ubDestAngle) {
 			pSquare->ubAngle += getDeltaAngleDirection(pSquare->ubAngle, ubDestAngle, 5);
+		}
 		if(!squareMove(pSquare)) {
 			g_ubGameOver = 1;
 			logWrite("BEB\n");
@@ -279,8 +288,9 @@ void squareProcessPlayer(void) {
 }
 
 void squareProcessAi(void) {
-	if(!g_pSquareFirst)
+	if(!g_pSquareFirst) {
 		return;
+	}
 	tSquare *pSquare = g_pSquareFirst->pNext;
 	while(pSquare) {
 		tSquare *pTarget = pSquare->pPrev;

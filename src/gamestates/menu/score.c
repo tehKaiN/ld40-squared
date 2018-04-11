@@ -17,21 +17,23 @@ static char s_pScoreNames[SCORE_COUNT][SCORE_NAME_LENGTH+1];
 static UBYTE s_ubNewNameLength;
 
 void scoreLoadBest(void) {
-	FILE *pScoreFile = fopen("data/scores.txt", "rb");
+	tFile *pScoreFile = fileOpen("data/scores.txt", "rb");
 	char szDummy[SCORE_NAME_LENGTH+1];
-	fscanf(pScoreFile, "%hu %s", &g_uwHiScore, szDummy);
-	for(UBYTE i = 0; i != SCORE_COUNT-1; ++i)
-		fscanf(pScoreFile, "%hu %s", &g_uwLoScore, szDummy);
-	fclose(pScoreFile);
+	fileScanf(pScoreFile, "%hu %s", &g_uwHiScore, szDummy);
+	for(UBYTE i = 0; i != SCORE_COUNT-1; ++i) {
+		fileScanf(pScoreFile, "%hu %s", &g_uwLoScore, szDummy);
+	}
+	fileClose(pScoreFile);
 
 	logWrite("Best: %hu, worst: %hu\n", g_uwHiScore, g_uwLoScore);
 }
 
 void scoreSave(void) {
-	FILE *pScoreFile = fopen("data/scores.txt", "wb");
-	for(UBYTE i = 0; i != SCORE_COUNT; ++i)
-		fprintf(pScoreFile, "%hu %s\n", s_pScores[i], s_pScoreNames[i]);
-	fclose(pScoreFile);
+	tFile *pScoreFile = fileOpen("data/scores.txt", "wb");
+	for(UBYTE i = 0; i != SCORE_COUNT; ++i) {
+		filePrintf(pScoreFile, "%hu %s\n", s_pScores[i], s_pScoreNames[i]);
+	}
+	fileClose(pScoreFile);
 }
 
 static UBYTE s_ubNewScorePos;
@@ -40,10 +42,11 @@ void scoreDisplay(UBYTE isNew) {
 	logBlockBegin("scoreDisplay(isNew: %hhu)", isNew);
 	viewLoad(0);
 	blitRect(g_pMenuBfrMgr->pBuffer, 0, 0, SCREEN_PAL_WIDTH, SCREEN_PAL_HEIGHT, 0);
-	FILE *pScoreFile = fopen("data/scores.txt", "rb");
-	for(UBYTE i = 0; i != SCORE_COUNT; ++i)
-		fscanf(pScoreFile, "%hu %s", &s_pScores[i], s_pScoreNames[i]);
-	fclose(pScoreFile);
+	tFile *pScoreFile = fileOpen("data/scores.txt", "rb");
+	for(UBYTE i = 0; i != SCORE_COUNT; ++i) {
+		fileScanf(pScoreFile, "%hu %s", &s_pScores[i], s_pScoreNames[i]);
+	}
+	fileClose(pScoreFile);
 
 	char szNewHeader[] = {"Enter your score!"};
 	char szViewHeader[] = {"Top scores:"};

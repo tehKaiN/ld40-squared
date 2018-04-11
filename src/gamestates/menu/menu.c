@@ -93,10 +93,12 @@ void menuGsCreate(void) {
 
 	scoreLoadBest();
 
-	if(g_uwScore > g_uwLoScore)
+	if(g_uwScore > g_uwLoScore) {
 		scoreDisplay(1);
-	else
+	}
+	else {
 		menuDraw();
+	}
 }
 
 void menuDraw(void) {
@@ -137,19 +139,22 @@ void menuGsLoop(void) {
 		);
 	}
 
-	if(keyUse(KEY_W) || joyUse(JOY1_UP)) {
+	if(keyUse(KEY_W) || joyUse(JOY1_UP) || keyUse(KEY_UP)) {
 		if(s_ubMenuPos) {
 			--s_ubMenuPos;
 			updateMenuPos();
 		}
 	}
-	else if(keyUse(KEY_S) || joyUse(JOY1_DOWN)) {
+	else if(keyUse(KEY_S) || joyUse(JOY1_DOWN) || keyUse(KEY_DOWN)) {
 		if(s_ubMenuPos < MENU_ITEM_COUNT-1) {
 			++s_ubMenuPos;
 			updateMenuPos();
 		}
 	}
-	else if(keyUse(KEY_RETURN) || keyUse(KEY_NUMENTER) || keyUse(KEY_SPACE) || joyUse(JOY1_FIRE)) {
+	else if(
+		keyUse(KEY_RETURN) || keyUse(KEY_NUMENTER) ||
+		keyUse(KEY_SPACE) || joyUse(JOY1_FIRE)
+	) {
 		switch(s_ubMenuPos) {
 			case 0:
 				g_isHard = 0;
@@ -174,6 +179,7 @@ void menuGsLoop(void) {
 void menuGsDestroy(void) {
 	viewDestroy(s_pView);
 
-	for(UBYTE i = 0; i != 7; ++i)
+	for(UBYTE i = 0; i != 7; ++i) {
 		bitmapDestroy(s_pLetters[i]);
+	}
 }
