@@ -4,5 +4,6 @@
 #include <ace/utils/font.h>
 
 extern tFont *g_pFont;
+extern tTextBitMap *g_pLineBuffer;
 
 #endif // _LD40_MAIN_H

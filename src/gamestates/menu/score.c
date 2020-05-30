@@ -79,54 +79,60 @@ void scoreDisplay(UBYTE isNew) {
 	else
 		szHeader = szViewHeader;
 
-	fontDrawStr(
-		g_pMenuBfrMgr->pBuffer, g_pFont,
+	fontFillTextBitMap(g_pFont, g_pLineBuffer, szHeader);
+	fontDrawTextBitMap(
+		g_pMenuBfrMgr->pBuffer, g_pLineBuffer,
 		(SCREEN_PAL_WIDTH>>1),
 		(SCREEN_PAL_HEIGHT >> 1) - 7*10,
-		szHeader, 1, FONT_CENTER
+		1, FONT_CENTER
 	);
 
 	// Display score
 	char szScore[20];
 	for(UBYTE i = 0; i != SCORE_COUNT; ++i) {
 		if(strlen(s_pScoreNames[i])) {
-			fontDrawStr(
-				g_pMenuBfrMgr->pBuffer, g_pFont,
+			fontFillTextBitMap(g_pFont, g_pLineBuffer, s_pScoreNames[i]);
+			fontDrawTextBitMap(
+				g_pMenuBfrMgr->pBuffer, g_pLineBuffer,
 				(SCREEN_PAL_WIDTH>>1) - 50,
 				(SCREEN_PAL_HEIGHT >> 1) - 5*10 + i*10,
-				s_pScoreNames[i], 1, FONT_VCENTER | FONT_LEFT
+				1, FONT_VCENTER | FONT_LEFT
 			);
 		}
 
 		sprintf(szScore, "%hu", s_pScores[i]);
-		fontDrawStr(
-			g_pMenuBfrMgr->pBuffer, g_pFont,
+		fontFillTextBitMap(g_pFont, g_pLineBuffer, szScore);
+		fontDrawTextBitMap(
+			g_pMenuBfrMgr->pBuffer, g_pLineBuffer,
 			(SCREEN_PAL_WIDTH>>1) + 50,
 			(SCREEN_PAL_HEIGHT >> 1) - 5*10 + i*10,
-			szScore, 1, FONT_VCENTER | FONT_RIGHT
+			1, FONT_VCENTER | FONT_RIGHT
 		);
 	}
 
 	// Go to loop
 	if(isNew) {
-		fontDrawStr(
-			g_pMenuBfrMgr->pBuffer, g_pFont,
+		fontFillTextBitMap(g_pFont, g_pLineBuffer, "Press ENTER to save");
+		fontDrawTextBitMap(
+			g_pMenuBfrMgr->pBuffer, g_pLineBuffer,
 			(SCREEN_PAL_WIDTH>>1),
 			(SCREEN_PAL_HEIGHT >> 1) + 7*10,
-			"Press ENTER to save", 1, FONT_CENTER
+			1, FONT_CENTER
 		);
 		gameChangeLoop(scoreEntryLoop);
 	}
-	else
+	else {
 		gameChangeLoop(scoreViewLoop);
+	}
 	viewLoad(g_pMenuBfrMgr->sCommon.pVPort->pView);
 	logBlockEnd("scoreDisplay()");
 }
 
 void scoreEntryLoop(void) {
 	if(keyUse(KEY_RETURN) || keyUse(KEY_NUMENTER)) {
-		if(s_ubNewNameLength)
+		if(s_ubNewNameLength) {
 			scoreSave();
+		}
 		menuDraw();
 		gameChangeLoop(menuGsLoop);
 		return;
@@ -141,11 +147,14 @@ void scoreEntryLoop(void) {
 			if(s_ubNewNameLength < SCORE_NAME_LENGTH) {
 				s_pScoreNames[s_ubNewScorePos][s_ubNewNameLength] = c;
 				++s_ubNewNameLength;
-				fontDrawStr(
-					g_pMenuBfrMgr->pBuffer, g_pFont,
+				fontFillTextBitMap(
+					g_pFont, g_pLineBuffer, s_pScoreNames[s_ubNewScorePos]
+				);
+				fontDrawTextBitMap(
+					g_pMenuBfrMgr->pBuffer, g_pLineBuffer,
 					(SCREEN_PAL_WIDTH>>1) - 50,
 					(SCREEN_PAL_HEIGHT >> 1) - 5*10 + s_ubNewScorePos*10,
-					s_pScoreNames[s_ubNewScorePos], 1, FONT_VCENTER | FONT_LEFT
+					1, FONT_VCENTER | FONT_LEFT
 				);
 			}
 		}

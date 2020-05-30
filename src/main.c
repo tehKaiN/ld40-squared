@@ -8,6 +8,7 @@
 #include "maths.h"
 
 tFont *g_pFont;
+tTextBitMap *g_pLineBuffer;
 
 void inputProcess() {
 	joyProcess();
@@ -20,6 +21,7 @@ void genericCreate(void) {
 	mathsInit();
 
 	g_pFont = fontCreate("data/silkscreen5.fnt");
+	g_pLineBuffer = fontCreateTextBitMap(320, 5);
 
 	gamePushState(menuGsCreate, menuGsLoop, menuGsDestroy); // gamePushState vs gameChangeState
 }
@@ -30,6 +32,7 @@ void genericProcess(void) {
 }
 
 void genericDestroy(void) {
+	fontDestroyTextBitMap(g_pLineBuffer);
 	fontDestroy(g_pFont);
 	keyDestroy();
 	joyClose();

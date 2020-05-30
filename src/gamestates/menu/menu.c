@@ -50,16 +50,18 @@ char *s_pEntryTxts[MENU_ITEM_COUNT] = {"Easy", "Nightmare", "Scores", "Enough"};
 void updateMenuPos(void) {
 	const UBYTE pEntryColors[MENU_ITEM_COUNT] = {1, 3, 1, 1};
 
-	fontDrawStr(
-		g_pMenuBfrMgr->pBuffer, g_pFont,
+	fontFillTextBitMap(g_pFont, g_pLineBuffer, s_pEntryTxts[s_ubPrevMenuPos]);
+	fontDrawTextBitMap(
+		g_pMenuBfrMgr->pBuffer, g_pLineBuffer,
 		SCREEN_PAL_WIDTH>>1, (SCREEN_PAL_HEIGHT>>1) + 10*s_ubPrevMenuPos,
-		s_pEntryTxts[s_ubPrevMenuPos], 2, FONT_CENTER
+		2, FONT_CENTER
 	);
 
-	fontDrawStr(
-		g_pMenuBfrMgr->pBuffer, g_pFont,
+	fontFillTextBitMap(g_pFont, g_pLineBuffer, s_pEntryTxts[s_ubMenuPos]);
+	fontDrawTextBitMap(
+		g_pMenuBfrMgr->pBuffer, g_pLineBuffer,
 		SCREEN_PAL_WIDTH>>1, (SCREEN_PAL_HEIGHT>>1) + 10*s_ubMenuPos,
-		s_pEntryTxts[s_ubMenuPos], pEntryColors[s_ubMenuPos], FONT_CENTER
+		pEntryColors[s_ubMenuPos], FONT_CENTER
 	);
 
 	s_ubPrevMenuPos = s_ubMenuPos;
@@ -109,10 +111,11 @@ void menuDraw(void) {
 	s_ubPrevMenuPos = 0;
 
 	for(UBYTE i = 0; i < MENU_ITEM_COUNT; ++i) {
-		fontDrawStr(
-			g_pMenuBfrMgr->pBuffer, g_pFont,
+		fontFillTextBitMap(g_pFont, g_pLineBuffer, s_pEntryTxts[i]);
+		fontDrawTextBitMap(
+			g_pMenuBfrMgr->pBuffer, g_pLineBuffer,
 			SCREEN_PAL_WIDTH>>1, (SCREEN_PAL_HEIGHT>>1) + 10*i,
-			s_pEntryTxts[i], 2, FONT_CENTER
+			2, FONT_CENTER
 		);
 	}
 

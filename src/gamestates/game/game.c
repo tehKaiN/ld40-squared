@@ -37,7 +37,8 @@ void hudUpdate(void) {
 		UBYTE ubScoreFromSquares = g_ubSquareCount << 1;
 		sprintf(szScore, "Score %hu (+%hhu)", g_uwScore, ubScoreFromSquares);
 		blitRect(s_pHudBfrMgr->pBuffer, 0, 0, 160, 5, 0);
-		fontDrawStr(s_pHudBfrMgr->pBuffer, g_pFont, 0, 0, szScore, 1, FONT_COOKIE);
+		fontFillTextBitMap(g_pFont, g_pLineBuffer, szScore);
+		fontDrawTextBitMap(s_pHudBfrMgr->pBuffer, g_pLineBuffer, 0, 0, 1, FONT_COOKIE);
 		s_uwPrevScore = g_uwScore;
 		s_ubPrevSquareCount = g_ubSquareCount;
 		if(g_uwScore > g_uwHiScore)
@@ -52,7 +53,10 @@ void hudUpdate(void) {
 			ubColor = 5;
 		else
 			ubColor = 1;
-		fontDrawStr(s_pHudBfrMgr->pBuffer, g_pFont, 200, 0, szHiScore, ubColor, FONT_COOKIE);
+		fontFillTextBitMap(g_pFont, g_pLineBuffer, szHiScore);
+		fontDrawTextBitMap(
+			s_pHudBfrMgr->pBuffer, g_pLineBuffer, 200, 0, ubColor, FONT_COOKIE
+		);
 		s_uwPrevHiScore = g_uwHiScore;
 	}
 }
@@ -97,9 +101,10 @@ void displayGameOver(void) {
 		uwStartX + (uwWidth-208)/2, uwStartY + 2, 208, 105,
 		MINTERM_COOKIE, 0xFF
 	);
-	fontDrawStr(
-		g_pMainBfrMgr->pBuffer, g_pFont, SCREEN_PAL_WIDTH/2, uwStartY + 2 + 105 + 5,
-		"'R' to retry, 'ESC' to quit",
+	fontFillTextBitMap(g_pFont, g_pLineBuffer, "'R' to retry, 'ESC' to quit");
+	fontDrawTextBitMap(
+		g_pMainBfrMgr->pBuffer, g_pLineBuffer,
+		SCREEN_PAL_WIDTH/2, uwStartY + 2 + 105 + 5,
 		1, FONT_HCENTER | FONT_TOP | FONT_COOKIE
 	);
 	g_uwScore = 0;
