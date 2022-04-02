@@ -7,28 +7,36 @@
 #include "gamestates/game/game.h"
 #include "gamestates/game/map.h"
 
+typedef enum tProcessTileResult {
+	PROCESS_TILE_CONTINUE = 0,
+	PROCESS_TILE_EXIT = 1,
+	PROCESS_TILE_DEAD = 2,
+} tProcessTileResult;
+
 UBYTE g_ubSquareCount;
 tSquare *g_pSquareFirst, *g_pSquareDisplayFirst;
 
-tBitMap *s_pSquareBitmap, *s_pSquareBg;
+static tBitMap *s_pSquareBitmap, *s_pSquareBg;
 
-void squareBitmapGenerate(void) {
+static void squareBitmapGenerate(void) {
+	s_pSquareBitmap = bitmapCreate(8, 8*256, 3, BMF_INTERLEAVED | BMF_CLEAR);
 	tBitMap *pSource = bitmapCreate(16,16, 3, BMF_INTERLEAVED);
 	tBitMap *pRotated = bitmapCreate(16,16, 3, BMF_INTERLEAVED);
-	s_pSquareBitmap = bitmapCreate(8, 8*256, 3, BMF_INTERLEAVED | BMF_CLEAR);
 	blitRect(pSource, 0, 0, 16, 16, 1);
 	blitRect(pSource, 8-2, 16/2 - 3, 1, 5, 0);
 	blitRect(pSource, 8-1, 16/2 - 2, 1, 3, 0);
 	blitRect(pSource, 8-0, 16/2 - 1, 1, 1, 0);
 
 	UBYTE pChunkySource[16*16], pChunkyRotated[16*16];
-	for(UBYTE y = 0; y != 16; ++y)
+	for(UBYTE y = 0; y < 16; ++y) {
 		chunkyFromPlanar16(pSource, 0, y, &pChunkySource[16*y]);
-	for(UWORD i = 0; i != 256; ++i) {
+	}
+	for(UWORD i = 0; i < 256; ++i) {
 		chunkyRotate(pChunkySource, pChunkyRotated,	cSin(i), cCos(i), 0, 16, 16);
-		for(UBYTE y = 0; y != 16; ++y)
+		for(UBYTE y = 0; y < 16; ++y) {
 			chunkyToPlanar16(&pChunkyRotated[16*y], 0, y, pRotated);
-		blitCopy(pRotated, 4, 4, s_pSquareBitmap, 0, i*8, 8, 8, MINTERM_COOKIE, 0xFF);
+		}
+		blitCopy(pRotated, 4, 4, s_pSquareBitmap, 0, i*8, 8, 8, MINTERM_COOKIE);
 	}
 	bitmapDestroy(pSource);
 	bitmapDestroy(pRotated);
@@ -36,22 +44,22 @@ void squareBitmapGenerate(void) {
 	bitmapSave(s_pSquareBitmap, "data/square.bm");
 }
 
-void squareBitmapLoad(void) {
-	s_pSquareBitmap = bitmapCreateFromFile("data/square.bm");
+static void squareBitmapLoad(void) {
+	s_pSquareBitmap = bitmapCreateFromFile("data/square.bm", 0);
 }
 
 // Shameless copy from OpenFire's gamemath.h
-UBYTE getAngleBetweenPoints(
+static UBYTE getAngleBetweenPoints(
 	tUwCoordYX *pSrc, tUwCoordYX *pDst
 ) {
-	UWORD uwDx = pDst->sUwCoord.uwX - pSrc->sUwCoord.uwX;
-	UWORD uwDy = pDst->sUwCoord.uwY - pSrc->sUwCoord.uwY;
+	WORD wDx = pDst->uwX - pSrc->uwX;
+	WORD wDy = pDst->uwY - pSrc->uwY;
 	// calc: ubAngle = ((pi + atan2(uwDy, uwDx)) * 128)/pi
-	const fix16_t fPiHalf = fix16_div(fix16_pi, fix16_from_int(2));
+	static const fix16_t fPiHalf = fix16_pi >> 1;
 	UBYTE ubAngle = fix16_to_int(
 		fix16_div(
 			fix16_mul(
-				fix16_atan2(fix16_from_int(-uwDy), fix16_from_int(uwDx)),
+				fix16_atan2(fix16_from_int(-wDy), fix16_from_int(wDx)),
 				fix16_from_int(64)
 			),
 			fPiHalf
@@ -60,19 +68,37 @@ UBYTE getAngleBetweenPoints(
 	return ubAngle;
 }
 
-WORD getDeltaAngleDirection(UBYTE ubPrevAngle, UBYTE ubNewAngle, UBYTE ubStep) {
-	WORD wDelta = ubNewAngle - ubPrevAngle;
-	if(wDelta < 0) {
-		if(wDelta + 256 < ubStep)
-			ubStep = wDelta + 256;
+static UBYTE moveAngleTowards(UBYTE ubAngleFrom, UBYTE ubAngleTo, UBYTE ubStep) {
+	WORD wDeltaCcw = (WORD)ubAngleTo - ubAngleFrom;
+	if(wDeltaCcw < 0) {
+		wDeltaCcw += 255;
 	}
-	else if(wDelta < ubStep)
-		ubStep = wDelta;
-	if(!wDelta)
-		return 0;
-	if((wDelta > 0 && wDelta < 128) || wDelta + 256 < 128)
-		return ubStep;
-	return -ubStep;
+
+	if(wDeltaCcw <= 128) {
+		// Going CCW - add
+		UBYTE ubNewAngle = ubAngleFrom + MIN(ubStep, wDeltaCcw);
+		return ubNewAngle;
+	}
+
+	// Going CW - subtract
+	UBYTE ubNewAngle = ubAngleFrom - MIN(ubStep, 255 - wDeltaCcw);
+	return ubNewAngle;
+}
+
+static void squareRemove(tSquare *pSquare) {
+	// Detach from list
+	pSquare->pNext->pPrev = pSquare->pPrev;
+	if(pSquare->pPrev) {
+		pSquare->pPrev->pNext = pSquare->pNext;
+	}
+	else {
+		g_pSquareFirst = pSquare->pNext;
+	}
+	// TODO remove all next squares instead?
+
+	// Free mem
+	memFree(pSquare, sizeof(tSquare));
+	--g_ubSquareCount;
 }
 
 void squaresManagerCreate(void) {
@@ -109,8 +135,8 @@ tSquare *squareAdd(UWORD uwX, UWORD uwY) {
 	tSquare *pSquare = memAllocFast(sizeof(tSquare));
 	pSquare->fX = fix16_from_int(uwX);
 	pSquare->fY = fix16_from_int(uwY);
-	pSquare->sCoord.sUwCoord.uwX = uwX;
-	pSquare->sCoord.sUwCoord.uwY = uwY;
+	pSquare->sCoord.uwX = uwX;
+	pSquare->sCoord.uwY = uwY;
 	pSquare->sPrevCoord.ulYX = pSquare->sCoord.ulYX;
 	pSquare->pDisplayNext = 0;
 	pSquare->pNext = 0;
@@ -139,107 +165,83 @@ tSquare *squareAdd(UWORD uwX, UWORD uwY) {
 	return pSquare;
 }
 
-void squareRemove(tSquare *pSquare) {
-	// Detach from list
-	pSquare->pNext->pPrev = pSquare->pPrev;
-	if(pSquare->pPrev)
-		pSquare->pPrev->pNext = pSquare->pNext;
-	else
-		g_pSquareFirst = pSquare->pNext;
-	// TODO remove all next squares instead?
+static tProcessTileResult processSquareAtTile(
+	tSquare *pSquare, UWORD uwTileX, UWORD uwTileY
+) {
+	switch(g_pMap[uwTileX][uwTileY]) {
+		case MAP_TILE_PICKUP:
+			squareAdd(uwTileX << 3, uwTileY << 3);
+			g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
+			break;
+		case MAP_TILE_BEB:
+			squareRemove(pSquare);
+			return PROCESS_TILE_DEAD;
+		case MAP_TILE_EXIT:
+			if(pSquare == g_pSquareFirst) {
+				g_isExit = 1;
+				return PROCESS_TILE_EXIT;
+			}
 
-	// Free mem
-	memFree(pSquare, sizeof(tSquare));
-	--g_ubSquareCount;
+			// Other square has reached the exit - add point for it and remove from map
+			g_uwScore += 1;
+			squareRemove(pSquare);
+			break;
+	}
+	return PROCESS_TILE_CONTINUE;
 }
 
-UBYTE squareMove(tSquare *pSquare) {
+static UBYTE squareMove(tSquare *pSquare) {
 	pSquare->fX = fix16_add(pSquare->fX, cCos(pSquare->ubAngle));
 	pSquare->fY = fix16_sub(pSquare->fY, cSin(pSquare->ubAngle));
-	pSquare->sCoord.sUwCoord.uwX = fix16_to_int(pSquare->fX);
-	pSquare->sCoord.sUwCoord.uwY = fix16_to_int(pSquare->fY);
+	pSquare->sCoord.uwX = fix16_to_int(pSquare->fX);
+	pSquare->sCoord.uwY = fix16_to_int(pSquare->fY);
 
 	const tUwCoordYX *pPos = &pSquare->sCoord;
 
 	// Pickups & exit & death
-	UWORD uwTileX, uwTileY;
-	uwTileX = pPos->sUwCoord.uwX >> 3;
-	uwTileY = pPos->sUwCoord.uwY >> 3;
-	switch(g_pMap[uwTileX][uwTileY]) {
-		case MAP_TILE_PICKUP:
-			squareAdd(uwTileX << 3, uwTileY << 3);
-			g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
-			break;
-		case MAP_TILE_BEB:
-			squareRemove(pSquare);
-			return 0;
-		case MAP_TILE_EXIT:
-			if(pSquare == g_pSquareFirst) {
-				g_isExit = 1;
-				break;
-			}
-			g_uwScore += 1;
-			squareRemove(pSquare);
-			return 1;
+	UWORD uwTileX = pPos->uwX >> 3;
+	UWORD uwTileY = pPos->uwY >> 3;
+	tProcessTileResult eResult = processSquareAtTile(pSquare, uwTileX, uwTileY);
+	if(eResult == PROCESS_TILE_EXIT) {
+		return 1;
+	}
+	else if(eResult == PROCESS_TILE_DEAD) {
+		return 0;
 	}
 
-	uwTileY = (pPos->sUwCoord.uwY+7) >> 3;
-	switch(g_pMap[uwTileX][uwTileY]) {
-		case MAP_TILE_PICKUP:
-			squareAdd(uwTileX << 3, uwTileY << 3);
-			g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
-			break;
-		case MAP_TILE_BEB:
-			squareRemove(pSquare);
-			return 0;
-		case MAP_TILE_EXIT:
-			if(pSquare == g_pSquareFirst) {
-				g_isExit = 1;
-				break;
-			}
-			g_uwScore += 1;
-			squareRemove(pSquare);
-			return 1;
+	uwTileY = (pPos->uwY+7) >> 3;
+	eResult = processSquareAtTile(pSquare, uwTileX, uwTileY);
+	if(eResult == PROCESS_TILE_EXIT) {
+		return 1;
+	}
+	else if(eResult == PROCESS_TILE_DEAD) {
+		return 0;
 	}
 
-	uwTileX = (pPos->sUwCoord.uwX+7) >> 3;
-	switch(g_pMap[uwTileX][uwTileY]) {
-		case MAP_TILE_PICKUP:
-			squareAdd(uwTileX << 3, uwTileY << 3);
-			g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
-			break;
-		case MAP_TILE_BEB:
-			squareRemove(pSquare);
-			return 0;
-		case MAP_TILE_EXIT:
-			if(pSquare == g_pSquareFirst) {
-				g_isExit = 1;
-				break;
-			}
-			g_uwScore += 1;
-			squareRemove(pSquare);
-			return 1;
+	uwTileX = (pPos->uwX+7) >> 3;
+	eResult = processSquareAtTile(pSquare, uwTileX, uwTileY);
+	if(eResult == PROCESS_TILE_EXIT) {
+		return 1;
+	}
+	else if(eResult == PROCESS_TILE_DEAD) {
+		return 0;
 	}
 
-	uwTileY = pPos->sUwCoord.uwY >> 3;
-	switch(g_pMap[uwTileX][uwTileY]) {
-		case MAP_TILE_PICKUP:
-			squareAdd(uwTileX << 3, uwTileY << 3);
-			g_pMap[uwTileX][uwTileY] = MAP_TILE_FREE;
-			break;
-		case MAP_TILE_BEB:
-			squareRemove(pSquare);
-			return 0;
-		case MAP_TILE_EXIT:
-			if(pSquare == g_pSquareFirst) {
-				g_isExit = 1;
-				break;
-			}
-			g_uwScore += 1;
-			squareRemove(pSquare);
-			return 1;
+	uwTileY = pPos->uwY >> 3;
+	eResult = processSquareAtTile(pSquare, uwTileX, uwTileY);
+	if(eResult == PROCESS_TILE_EXIT) {
+		return 1;
 	}
+	else if(eResult == PROCESS_TILE_DEAD) {
+		return 0;
+	}
+
 	return 1;
+}
+
+static void setGameOver(void) {
+	g_ubGameOver = 1;
+	logWrite("BEB\n");
 }
 
 void squareProcessPlayer(void) {
@@ -247,33 +249,33 @@ void squareProcessPlayer(void) {
 	UBYTE ubDestAngle = 0xFF;
 
 	// NOTE: This is nasty but I guess it's quickest, think of something better?
-	if(keyCheck(KEY_W) || joyPeek(JOY1_UP)) {
-		if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT))
+	if(keyCheck(KEY_W) || joyCheck(JOY1_UP)) {
+		if(keyCheck(KEY_A) || joyCheck(JOY1_LEFT))
 			ubDestAngle = 96;
-		else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT))
+		else if(keyCheck(KEY_D) || joyCheck(JOY1_RIGHT))
 			ubDestAngle = 32;
 		else
 			ubDestAngle = 64;
 	}
-	else if(keyCheck(KEY_S) || joyPeek(JOY1_DOWN)) {
-		if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT))
+	else if(keyCheck(KEY_S) || joyCheck(JOY1_DOWN)) {
+		if(keyCheck(KEY_A) || joyCheck(JOY1_LEFT))
 			ubDestAngle = 160;
-		else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT))
+		else if(keyCheck(KEY_D) || joyCheck(JOY1_RIGHT))
 			ubDestAngle = 224;
 		else
 			ubDestAngle = 192;
 	}
-	else if(keyCheck(KEY_A) || joyPeek(JOY1_LEFT))
+	else if(keyCheck(KEY_A) || joyCheck(JOY1_LEFT))
 		ubDestAngle = 128;
-	else if(keyCheck(KEY_D) || joyPeek(JOY1_RIGHT))
+	else if(keyCheck(KEY_D) || joyCheck(JOY1_RIGHT))
 		ubDestAngle = 0;
 
 	if(ubDestAngle != 0xFF) {
-		if(pSquare->ubAngle != ubDestAngle)
-			pSquare->ubAngle += getDeltaAngleDirection(pSquare->ubAngle, ubDestAngle, 5);
+		if(pSquare->ubAngle != ubDestAngle) {
+			pSquare->ubAngle = moveAngleTowards(pSquare->ubAngle, ubDestAngle, 5);
+		}
 		if(!squareMove(pSquare)) {
-			g_ubGameOver = 1;
-			logWrite("BEB\n");
+			setGameOver();
 		}
 	}
 }
@@ -288,19 +290,22 @@ void squareProcessAi(void) {
 			continue;
 
 		// Update angle
-		WORD wDx = pTarget->sCoord.sUwCoord.uwX - pSquare->sCoord.sUwCoord.uwX;
-		WORD wDy = pTarget->sCoord.sUwCoord.uwY - pSquare->sCoord.sUwCoord.uwY;
+		WORD wDx = pTarget->sCoord.uwX - pSquare->sCoord.uwX;
+		WORD wDy = pTarget->sCoord.uwY - pSquare->sCoord.uwY;
 		UBYTE ubDestAngle = getAngleBetweenPoints(&pSquare->sCoord, &pTarget->sCoord);
-		pSquare->ubAngle += getDeltaAngleDirection(pSquare->ubAngle, ubDestAngle, 4);
+		pSquare->ubAngle = moveAngleTowards(pSquare->ubAngle, ubDestAngle, 4);
 
 		// Current may cease to exist during movement - save 'next' for continuing
 		tSquare *pNext = pSquare->pNext;
 
 		// Move if too far
 		if(ABS(wDx) > 9 || ABS(wDy) > 9) {
-			if(!squareMove(pSquare) && g_isHard) {
-				g_ubGameOver = 1;
-				logWrite("BEB\n");
+			UBYTE isAlive = squareMove(pSquare);
+			if(!isAlive) {
+				logWrite("Square destroyed\n");
+				if(g_isHard) {
+					setGameOver();
+				}
 			}
 		}
 
@@ -309,7 +314,7 @@ void squareProcessAi(void) {
 	}
 }
 
-void squaresOrderForDraw(void) {
+UWORD squaresOrderForDraw(void) {
 	// Clear display order
 	g_pSquareDisplayFirst = 0;
 	tSquare *pSquare = g_pSquareFirst;
@@ -320,66 +325,68 @@ void squaresOrderForDraw(void) {
 
 	// Create new order
 	pSquare = g_pSquareFirst;
+	tSquare *pLastToDraw = pSquare;
 	while(pSquare) {
 		// First one?
 		if(!g_pSquareDisplayFirst) {
 			g_pSquareDisplayFirst = pSquare;
 			pSquare = pSquare->pNext;
+			pLastToDraw = g_pSquareFirst;
 			continue;
 		}
 
+		// Find Last or one that's lower on screen
 		tSquare *pPrevSquare = 0;
 		tSquare *pOtherSquare = g_pSquareDisplayFirst;
-
-		// Find Last or one that's lower on screen
 		while(pOtherSquare && pOtherSquare->sCoord.ulYX < pSquare->sCoord.ulYX) {
 			pPrevSquare = pOtherSquare;
 			pOtherSquare = pOtherSquare->pDisplayNext;
 		}
 
 		if(!pPrevSquare) {
-			// No prev, so other was first to display
-			// swap and place old first as next
+			// Stopped on first search iteration, so other square
+			// is definitely higher on screen. Swap and place old first as next.
 			pSquare->pDisplayNext = g_pSquareDisplayFirst;
 			g_pSquareDisplayFirst = pSquare;
 		}
-		else if(!pOtherSquare->pDisplayNext) {
-			// No next one to display- attach as next
-			pOtherSquare->pDisplayNext = pSquare;
-		}
-		else {
-			// Attach as prev's next, other is current next
+		else if(pOtherSquare) {
+			// Other square is lower on screen. Attach this one above it.
 			pSquare->pDisplayNext = pPrevSquare->pDisplayNext;
 			pPrevSquare->pDisplayNext = pSquare;
+		}
+		else {
+			// List has ended - all are higher on screen. Attaching on end.
+			pPrevSquare->pDisplayNext = pSquare;
+			pLastToDraw = pSquare;
 		}
 
 		pSquare = pSquare->pNext;
 	}
+
+	return pLastToDraw->sCoord.uwY;
 }
 
-void squaresUndraw(void) {
+void squaresUndraw(tBitMap *pBuffer) {
 	// Direction arrow
 	tSquare *pSquare = g_pSquareFirst;
 	while(pSquare) {
 		blitCopy(
 			s_pSquareBg, 0, 0,
-			g_pMainBfrMgr->pBuffer,
-			pSquare->sPrevCoord.sUwCoord.uwX, pSquare->sPrevCoord.sUwCoord.uwY,
-			8, 8, MINTERM_COOKIE, 0xFF
+			pBuffer, pSquare->sPrevCoord.uwX, pSquare->sPrevCoord.uwY,
+			8, 8, MINTERM_COOKIE
 		);
 		pSquare = pSquare->pNext;
 	}
 }
 
-void squaresDraw(void) {
+void squaresDraw(tBitMap *pBuffer) {
 	// Draw with direction arrows
 	tSquare *pSquare = g_pSquareDisplayFirst;
 	while(pSquare) {
 		blitCopy(
 			s_pSquareBitmap, 0, pSquare->ubAngle << 3,
-			g_pMainBfrMgr->pBuffer,
-			pSquare->sCoord.sUwCoord.uwX, pSquare->sCoord.sUwCoord.uwY,
-			8, 8, MINTERM_COOKIE, 0xFF
+			pBuffer, pSquare->sCoord.uwX, pSquare->sCoord.uwY,
+			8, 8, MINTERM_COOKIE
 		);
 		pSquare->sPrevCoord.ulYX = pSquare->sCoord.ulYX;
 		pSquare = pSquare->pDisplayNext;

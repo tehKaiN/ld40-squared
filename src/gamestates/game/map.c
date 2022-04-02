@@ -1,19 +1,21 @@
 #include "gamestates/game/map.h"
 #include <ace/managers/blit.h>
+#include <ace/managers/system.h>
 
 UBYTE g_pMap[MAP_WIDTH][MAP_HEIGHT];
 
 void mapCreate(const char *szMapName) {
+	systemUse();
 	logBlockBegin("mapCreate(szMapName: %s)", szMapName);
-	char szPath[200];
+	char szPath[15];
 	sprintf(szPath, "data/%s", szMapName);
-	FILE *pMapFile = fopen(szPath, "rb");
+	tFile *pMapFile = fileOpen(szPath, "rb");
 	if(pMapFile) {
 		UWORD uwCharCnt = 0;
 		UBYTE x = 0, y = 0;
 		while(uwCharCnt < MAP_HEIGHT * MAP_WIDTH) {
 			UBYTE c;
-			fread(&c, 1, 1, pMapFile);
+			fileRead(pMapFile, &c, 1);
 
 			// Skip whitespace
 			if(c < 32)
@@ -43,11 +45,12 @@ void mapCreate(const char *szMapName) {
 			}
 			++uwCharCnt;
 		}
-		fclose(pMapFile);
+		fileClose(pMapFile);
 	}
 	else {
 		logWrite("ERR: Map %s not found\n", szPath);
 	}
+	systemUnuse();
 
 	// Ensure that there is a beb border
 	for(UBYTE x = 0; x != MAP_WIDTH; ++x) {
@@ -61,18 +64,18 @@ void mapCreate(const char *szMapName) {
 	logBlockEnd("mapCreate()");
 }
 
-void mapDraw(void) {
+void mapDraw(tBitMap *pBuffer) {
 	for(UBYTE x = 0; x != MAP_WIDTH; ++x) {
 		for(UBYTE y = 0; y != MAP_HEIGHT; ++y) {
 			switch(g_pMap[x][y]) {
 				case MAP_TILE_BEB:
-					blitRect(g_pMainBfrMgr->pBuffer, x<<3, y<<3, 8, 8, 3);
+					blitRect(pBuffer, x<<3, y<<3, 8, 8, 3);
 					break;
 				case MAP_TILE_PICKUP:
-					blitRect(g_pMainBfrMgr->pBuffer, x<<3, y<<3, 8, 8, 4);
+					blitRect(pBuffer, x<<3, y<<3, 8, 8, 4);
 					break;
 				case MAP_TILE_EXIT:
-					blitRect(g_pMainBfrMgr->pBuffer, x<<3, y<<3, 8, 8, 5);
+					blitRect(pBuffer, x<<3, y<<3, 8, 8, 5);
 					break;
 			}
 		}

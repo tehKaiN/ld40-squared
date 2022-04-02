@@ -14,7 +14,7 @@
 
 void mapCreate(const char *szMapName);
 
-void mapDraw(void);
+void mapDraw(tBitMap *pBuffer);
 
 extern UBYTE g_pMap[MAP_WIDTH][MAP_HEIGHT];
 

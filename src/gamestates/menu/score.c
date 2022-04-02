@@ -15,23 +15,29 @@
 static UWORD s_pScores[SCORE_COUNT];
 static char s_pScoreNames[SCORE_COUNT][SCORE_NAME_LENGTH+1];
 static UBYTE s_ubNewNameLength;
+static tState s_sStateHiScoreEntry;
+static tState s_sStateHiScoreView;
 
 void scoreLoadBest(void) {
-	FILE *pScoreFile = fopen("data/scores.txt", "rb");
-	char szDummy[SCORE_NAME_LENGTH+1];
-	fscanf(pScoreFile, "%hu %s", &g_uwHiScore, szDummy);
-	for(UBYTE i = 0; i != SCORE_COUNT-1; ++i)
-		fscanf(pScoreFile, "%hu %s", &g_uwLoScore, szDummy);
-	fclose(pScoreFile);
+	// tFile *pScoreFile = fileOpen("data/scores.txt", "rb");
+	// char szDummy[SCORE_NAME_LENGTH+1];
+	// fscanf(pScoreFile, "%hu %s", &g_uwHiScore, szDummy);
+	// for(UBYTE i = 0; i != SCORE_COUNT-1; ++i) {
+	// 	fscanf(pScoreFile, "%hu %s", &g_uwLoScore, szDummy);
+	// }
+	// fileClose(pScoreFile);
 
 	logWrite("Best: %hu, worst: %hu\n", g_uwHiScore, g_uwLoScore);
 }
 
 void scoreSave(void) {
-	FILE *pScoreFile = fopen("data/scores.txt", "wb");
-	for(UBYTE i = 0; i != SCORE_COUNT; ++i)
-		fprintf(pScoreFile, "%hu %s\n", s_pScores[i], s_pScoreNames[i]);
-	fclose(pScoreFile);
+	tFile *pScoreFile = fileOpen("data/scores.txt", "wb");
+	for(UBYTE i = 0; i != SCORE_COUNT; ++i) {
+		char szBfr[20];
+		UBYTE ubLength = sprintf(szBfr, "%hu %s\n", s_pScores[i], s_pScoreNames[i]);
+		fileWrite(pScoreFile, szBfr, ubLength);
+	}
+	fileClose(pScoreFile);
 }
 
 static UBYTE s_ubNewScorePos;
@@ -39,11 +45,11 @@ static UBYTE s_ubNewScorePos;
 void scoreDisplay(UBYTE isNew) {
 	logBlockBegin("scoreDisplay(isNew: %hhu)", isNew);
 	viewLoad(0);
-	blitRect(g_pMenuBfrMgr->pBuffer, 0, 0, SCREEN_PAL_WIDTH, SCREEN_PAL_HEIGHT, 0);
-	FILE *pScoreFile = fopen("data/scores.txt", "rb");
-	for(UBYTE i = 0; i != SCORE_COUNT; ++i)
-		fscanf(pScoreFile, "%hu %s", &s_pScores[i], s_pScoreNames[i]);
-	fclose(pScoreFile);
+	blitRect(g_pMenuBfrMgr->pBack, 0, 0, SCREEN_PAL_WIDTH, SCREEN_PAL_HEIGHT, 0);
+	// tFile *pScoreFile = fileOpen("data/scores.txt", "rb");
+	// for(UBYTE i = 0; i != SCORE_COUNT; ++i)
+	// 	fscanf(pScoreFile, "%hu %s", &s_pScores[i], s_pScoreNames[i]);
+	// fileClose(pScoreFile);
 
 	char szNewHeader[] = {"Enter your score!"};
 	char szViewHeader[] = {"Top scores:"};
@@ -77,10 +83,10 @@ void scoreDisplay(UBYTE isNew) {
 		szHeader = szViewHeader;
 
 	fontDrawStr(
-		g_pMenuBfrMgr->pBuffer, g_pFont,
+		g_pFont, g_pMenuBfrMgr->pBack,
 		(SCREEN_PAL_WIDTH>>1),
 		(SCREEN_PAL_HEIGHT >> 1) - 7*10,
-		szHeader, 1, FONT_CENTER
+		szHeader, 1, FONT_CENTER, g_pTextBitMap
 	);
 
 	// Display score
@@ -88,44 +94,45 @@ void scoreDisplay(UBYTE isNew) {
 	for(UBYTE i = 0; i != SCORE_COUNT; ++i) {
 		if(strlen(s_pScoreNames[i])) {
 			fontDrawStr(
-				g_pMenuBfrMgr->pBuffer, g_pFont,
+				g_pFont, g_pMenuBfrMgr->pBack,
 				(SCREEN_PAL_WIDTH>>1) - 50,
 				(SCREEN_PAL_HEIGHT >> 1) - 5*10 + i*10,
-				s_pScoreNames[i], 1, FONT_VCENTER | FONT_LEFT
+				s_pScoreNames[i], 1, FONT_VCENTER | FONT_LEFT, g_pTextBitMap
 			);
 		}
 
 		sprintf(szScore, "%hu", s_pScores[i]);
 		fontDrawStr(
-			g_pMenuBfrMgr->pBuffer, g_pFont,
+			g_pFont, g_pMenuBfrMgr->pBack,
 			(SCREEN_PAL_WIDTH>>1) + 50,
 			(SCREEN_PAL_HEIGHT >> 1) - 5*10 + i*10,
-			szScore, 1, FONT_VCENTER | FONT_RIGHT
+			szScore, 1, FONT_VCENTER | FONT_RIGHT, g_pTextBitMap
 		);
 	}
 
 	// Go to loop
 	if(isNew) {
 		fontDrawStr(
-			g_pMenuBfrMgr->pBuffer, g_pFont,
+			g_pFont, g_pMenuBfrMgr->pBack,
 			(SCREEN_PAL_WIDTH>>1),
 			(SCREEN_PAL_HEIGHT >> 1) + 7*10,
-			"Press ENTER to save", 1, FONT_CENTER
+			"Press ENTER to save", 1, FONT_CENTER, g_pTextBitMap
 		);
-		gameChangeLoop(scoreEntryLoop);
+		statePush(g_pStateMachine, &s_sStateHiScoreEntry);
 	}
-	else
-		gameChangeLoop(scoreViewLoop);
+	else {
+		statePush(g_pStateMachine, &s_sStateHiScoreView);
+	}
 	viewLoad(g_pMenuBfrMgr->sCommon.pVPort->pView);
 	logBlockEnd("scoreDisplay()");
 }
 
 void scoreEntryLoop(void) {
 	if(keyUse(KEY_RETURN) || keyUse(KEY_NUMENTER)) {
-		if(s_ubNewNameLength)
+		if(s_ubNewNameLength) {
 			scoreSave();
-		menuDraw();
-		gameChangeLoop(menuGsLoop);
+		}
+		statePop(g_pStateMachine);
 		return;
 	}
 	if(keyUse(g_sKeyManager.ubLastKey)) {
@@ -139,10 +146,10 @@ void scoreEntryLoop(void) {
 				s_pScoreNames[s_ubNewScorePos][s_ubNewNameLength] = c;
 				++s_ubNewNameLength;
 				fontDrawStr(
-					g_pMenuBfrMgr->pBuffer, g_pFont,
+					g_pFont, g_pMenuBfrMgr->pBack,
 					(SCREEN_PAL_WIDTH>>1) - 50,
 					(SCREEN_PAL_HEIGHT >> 1) - 5*10 + s_ubNewScorePos*10,
-					s_pScoreNames[s_ubNewScorePos], 1, FONT_VCENTER | FONT_LEFT
+					s_pScoreNames[s_ubNewScorePos], 1, FONT_VCENTER | FONT_LEFT, g_pTextBitMap
 				);
 			}
 		}
@@ -155,7 +162,9 @@ void scoreViewLoop(void) {
 		keyUse(KEY_ESCAPE) || keyUse(KEY_NUMENTER) || keyUse(KEY_RETURN) ||
 		keyUse(KEY_SPACE) || joyUse(JOY1_FIRE)
 	) {
-		menuDraw();
-		gameChangeLoop(menuGsLoop);
+		statePop(g_pStateMachine);
 	}
 }
+
+static tState s_sStateHiScoreEntry = {.cbLoop = scoreEntryLoop};
+static tState s_sStateHiScoreView = {.cbLoop = scoreViewLoop};

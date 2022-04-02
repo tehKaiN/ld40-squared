@@ -3,6 +3,7 @@
 #include <ace/managers/game.h>
 #include <ace/managers/blit.h>
 #include <ace/managers/rand.h>
+#include <ace/managers/system.h>
 #include <ace/utils/font.h>
 #include <ace/generic/screen.h>
 #include "main.h"
@@ -10,22 +11,24 @@
 #include "gamestates/game/map.h"
 #include "gamestates/menu/menu.h"
 
-static tView *s_pView;
-static tVPort *s_pMainVPort, *s_pHudVPort;
-tSimpleBufferManager *g_pMainBfrMgr;
-static tSimpleBufferManager *s_pHudBfrMgr;
 UBYTE g_ubGameOver;
 UBYTE g_ubStartX, g_ubStartY; ///<- Start tile coords
 UBYTE g_isExit;
 UBYTE g_isHard = 0;
-static tBitMap *s_pGameOverBitmap;
 UBYTE g_ubCurrMap;
 UWORD g_uwScore = 0;
 UWORD g_uwHiScore, g_uwLoScore;
 
+static tView *s_pView;
+static tVPort *s_pMainVPort, *s_pHudVPort;
+static tSimpleBufferManager *s_pHudBfrMgr;
+static tSimpleBufferManager *g_pMainBfrMgr;
+static tBitMap *s_pGameOverBitmap;
 static UWORD s_uwPrevScore;
 static UBYTE s_ubPrevSquareCount;
 static UWORD s_uwPrevHiScore;
+static UWORD s_uwLastSquarePos;
+static tState s_sStateGameOver;
 
 void gameGsGameOverLoop(void);
 
@@ -36,8 +39,8 @@ void hudUpdate(void) {
 		char szScore[30];
 		UBYTE ubScoreFromSquares = g_ubSquareCount << 1;
 		sprintf(szScore, "Score %hu (+%hhu)", g_uwScore, ubScoreFromSquares);
-		blitRect(s_pHudBfrMgr->pBuffer, 0, 0, 160, 5, 0);
-		fontDrawStr(s_pHudBfrMgr->pBuffer, g_pFont, 0, 0, szScore, 1, FONT_COOKIE);
+		blitRect(s_pHudBfrMgr->pBack, 0, 0, 160, 5, 0);
+		fontDrawStr(g_pFont, s_pHudBfrMgr->pBack, 0, 0, szScore, 1, FONT_COOKIE, g_pTextBitMap);
 		s_uwPrevScore = g_uwScore;
 		s_ubPrevSquareCount = g_ubSquareCount;
 		if(g_uwScore > g_uwHiScore)
@@ -46,23 +49,23 @@ void hudUpdate(void) {
 	if(s_uwPrevHiScore != g_uwHiScore) {
 		char szHiScore[20];
 		sprintf(szHiScore, "hi-score: %hu", g_uwHiScore);
-		blitRect(s_pHudBfrMgr->pBuffer, 200, 0, 100, 5, 0);
+		blitRect(s_pHudBfrMgr->pBack, 200, 0, 100, 5, 0);
 		UBYTE ubColor;
 		if(g_uwScore == g_uwHiScore)
 			ubColor = 5;
 		else
 			ubColor = 1;
-		fontDrawStr(s_pHudBfrMgr->pBuffer, g_pFont, 200, 0, szHiScore, ubColor, FONT_COOKIE);
+		fontDrawStr(g_pFont, s_pHudBfrMgr->pBack, 200, 0, szHiScore, ubColor, FONT_COOKIE, g_pTextBitMap);
 		s_uwPrevHiScore = g_uwHiScore;
 	}
 }
 
-void loadLevel() {
+static void loadLevel() {
 	viewLoad(0);
 	blitRect(
-		g_pMainBfrMgr->pBuffer, 0, 0,
-		bitmapGetByteWidth(g_pMainBfrMgr->pBuffer) << 3,
-		g_pMainBfrMgr->pBuffer->Rows,
+		g_pMainBfrMgr->pBack, 0, 0,
+		bitmapGetByteWidth(g_pMainBfrMgr->pBack) << 3,
+		g_pMainBfrMgr->pBack->Rows,
 		0
 	);
 
@@ -71,14 +74,13 @@ void loadLevel() {
 	char szName[10];
 	sprintf(szName, "map%hhu.txt", g_ubCurrMap);
 	mapCreate(szName);
-	mapDraw();
+	mapDraw(g_pMainBfrMgr->pBack);
 	g_ubGameOver = 0;
 	g_isExit = 0;
 	squareAdd(g_ubStartX << 3, g_ubStartY << 3);
 
-	gameChangeLoop(gameGsLoop);
-
 	viewLoad(s_pView);
+	s_uwLastSquarePos = s_pMainVPort->uwHeight;
 }
 
 void displayGameOver(void) {
@@ -90,21 +92,21 @@ void displayGameOver(void) {
 	const UWORD uwHeight = 130;
 	const UWORD uwStartX = (SCREEN_PAL_WIDTH - uwWidth)/2;
 	const UWORD uwStartY = (SCREEN_PAL_HEIGHT - uwHeight)/2 - GAME_HUD_VPORT_HEIGHT;
-	blitRect(g_pMainBfrMgr->pBuffer, uwStartX,  uwStartY, uwWidth, uwHeight, 1);
-	blitRect(g_pMainBfrMgr->pBuffer, uwStartX +1,  uwStartY +1, uwWidth -2, uwHeight -2, 0);
+	blitRect(g_pMainBfrMgr->pBack, uwStartX,  uwStartY, uwWidth, uwHeight, 1);
+	blitRect(g_pMainBfrMgr->pBack, uwStartX +1,  uwStartY +1, uwWidth -2, uwHeight -2, 0);
 	blitCopy(
-		s_pGameOverBitmap, 0, 0, g_pMainBfrMgr->pBuffer,
+		s_pGameOverBitmap, 0, 0, g_pMainBfrMgr->pBack,
 		uwStartX + (uwWidth-208)/2, uwStartY + 2, 208, 105,
-		MINTERM_COOKIE, 0xFF
+		MINTERM_COOKIE
 	);
 	fontDrawStr(
-		g_pMainBfrMgr->pBuffer, g_pFont, SCREEN_PAL_WIDTH/2, uwStartY + 2 + 105 + 5,
+		g_pFont, g_pMainBfrMgr->pBack, SCREEN_PAL_WIDTH/2, uwStartY + 2 + 105 + 5,
 		"'R' to retry, 'ESC' to quit",
-		1, FONT_HCENTER | FONT_TOP | FONT_COOKIE
+		1, FONT_HCENTER | FONT_TOP | FONT_COOKIE, g_pTextBitMap
 	);
 	g_uwScore = 0;
 	g_ubCurrMap = 0;
-	gameChangeLoop(gameGsGameOverLoop);
+	statePush(g_pStateMachine, &s_sStateGameOver);
 }
 
 void gameGsCreate(void) {
@@ -141,7 +143,7 @@ void gameGsCreate(void) {
 	squaresManagerCreate();
 
 	// Game over stuff
-	s_pGameOverBitmap = bitmapCreateFromFile("data/gameover.bm");
+	s_pGameOverBitmap = bitmapCreateFromFile("data/gameover.bm", 0);
 
 	// HUD stuff
 	s_uwPrevScore = 0xFFFF;
@@ -152,17 +154,20 @@ void gameGsCreate(void) {
 	g_uwScore = 0;
 	loadLevel();
 
+	systemUnuse();
 	viewLoad(s_pView);
 	logBlockEnd("gameGsCreate()");
 }
 
 void gameGsGameOverLoop(void) {
 	if(keyUse(KEY_R)) {
+		statePop(g_pStateMachine);
 		loadLevel();
 		return;
 	}
 	else if(keyUse(KEY_ESCAPE)) {
-		gameChangeState(menuGsCreate, menuGsLoop, menuGsDestroy);
+		statePop(g_pStateMachine);
+		stateChange(g_pStateMachine, &g_sStateMenu);
 		return;
 	}
 	vPortWaitForEnd(s_pMainVPort);
@@ -174,22 +179,22 @@ void gameGsLoop(void) {
 		return;
 	}
 	else if(keyUse(KEY_ESCAPE)) {
-		gameChangeState(menuGsCreate, menuGsLoop, menuGsDestroy);
+		stateChange(g_pStateMachine, &g_sStateMenu);
 		return;
 	}
 	else if(keyUse(KEY_N)) {
 		// DEBUG
 		squareAdd(
-			g_pSquareFirst->sCoord.sUwCoord.uwX - 16 + uwRandMinMax(0, 32),
-			g_pSquareFirst->sCoord.sUwCoord.uwY - 16 + uwRandMinMax(0, 32)
+			g_pSquareFirst->sCoord.uwX - 16 + uwRandMinMax(0, 32),
+			g_pSquareFirst->sCoord.uwY - 16 + uwRandMinMax(0, 32)
 		);
 		logWrite("new\n");
 	}
 	hudUpdate();
 
-	vPortWaitForEnd(s_pMainVPort);
+	vPortWaitForPos(s_pMainVPort, s_uwLastSquarePos, 1);
 	squareProcessPlayer();
-	squaresUndraw();
+	squaresUndraw(g_pMainBfrMgr->pBack);
 	squareProcessAi();
 
 	if(g_ubGameOver) {
@@ -200,21 +205,27 @@ void gameGsLoop(void) {
 		g_uwScore += g_ubSquareCount << 1;
 		++g_ubCurrMap;
 		if(g_ubCurrMap >= MAP_COUNT) {
-			gameChangeState(menuGsCreate, menuGsLoop, menuGsDestroy);
+			stateChange(g_pStateMachine, &g_sStateMenu);
 			return;
 		}
 		loadLevel();
 		return;
 	}
 
-	squaresOrderForDraw();
-	squaresDraw();
+	s_uwLastSquarePos = squaresOrderForDraw() + 8;
+	squaresDraw(g_pMainBfrMgr->pBack);
 }
 
 void gameGsDestroy(void) {
+	systemUse();
 	viewDestroy(s_pView);
 
 	bitmapDestroy(s_pGameOverBitmap);
 
 	squaresManagerDestroy();
 }
+
+static tState s_sStateGameOver = {.cbLoop = gameGsGameOverLoop};
+tState g_sStateGame = {
+	.cbCreate = gameGsCreate, .cbLoop = gameGsLoop, .cbDestroy = gameGsDestroy
+};
